@@ -3,8 +3,17 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Matching Aspiration</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<meta name="apple-mobile-web-app-title" content="Matching Aspiration AI">
+<meta name="application-name" content="Matching Aspiration AI">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Matching Aspiration AI</title>
 <style>
 :root{--bg:#0a0e1a;--sur:#111827;--sur2:#1a2234;--bdr:#1e2d45;--ac:#00c8ff;--ac2:#0080cc;--warn:#f59e0b;--danger:#ef4444;--ok:#10b981;--txt:#e2e8f0;--muted:#64748b;--dim:#94a3b8;--purple:#a78bfa;--orange:#fb923c;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -203,7 +212,7 @@ select.fs option{background:var(--sur2);}
 <div id="bootSplash" class="splash" aria-hidden="true">
   <div class="splashCore">
     <div class="splashWord">Matching Aspiration</div>
-    <div class="splashSub">Aspiration Catheter Reference Tool</div>
+    <div class="splashSub">Aspiration Catheter Voice Guide Tool</div>
   </div>
 </div>
 
@@ -211,7 +220,7 @@ select.fs option{background:var(--sur2);}
   <div class="logoWrap">
     <div class="logo">Matching Aspiration</div>
   </div>
-  <div class="sub">Secure Access — v2.3 AI</div>
+  <div class="sub">Secure Access — v2.4 Voice Guide</div>
   <div class="lbox">
     <div class="nb"><div class="nt">⚠ ご使用前に必ずお読みください</div>本ツールは<strong style="color:#e2eaf5;">医療機器ではありません</strong>。薬機法第２条第４項の「医療機器」に該当しません。脳血管内治療に従事する<strong style="color:#e2eaf5;">医療従事者向けの学習・参照目的ツール</strong>です。必ず最新のIFUを確認のうえ使用してください。</div>
     <label class="ar" for="agCk"><input type="checkbox" id="agCk" onchange="onAgree()"><span>本ツールが医療機器でないこと、参照・学習目的のみに使用すること、最終判断は術者が最新IFUを参照したうえで行うことに同意します。</span></label>
@@ -262,7 +271,7 @@ function onAgree(){
       <h1>Matching Aspiration</h1>
       <small>吸引カテーテル参照ツール（脳血管内治療補助用）</small>
     </div>
-    <div class="hver"><div style="color:var(--ok);font-size:.6rem;">✅ 非医療機器</div><div>v2.3 AI</div></div>
+    <div class="hver"><div style="color:var(--ok);font-size:.6rem;">✅ 非医療機器</div><div>v2.4 Voice</div></div>
   </div>
 
   <div class="tabs">
@@ -776,16 +785,36 @@ function delC(idx){
 </script>
 
 
+
 <script>
 (function(){
-  const aiState={panelOpen:false,listening:false,recognition:null,recognitionSupported:false,lastTranscript:'',busy:false};
+  const aiState={
+    panelOpen:false,
+    listening:false,
+    recognition:null,
+    recognitionSupported:false,
+    lastTranscript:'',
+    busy:false,
+    speechEnabled:true,
+    loggedIn:false
+  };
+  const flow={
+    active:false,
+    stage:'idle',
+    mode:null,
+    firstIdx:'',
+    secondIdx:'',
+    connectorKey:'0',
+    lastPrompt:'',
+    welcomeStarted:false
+  };
   let silenceTimer=null;
   let finalBuffer='';
+  let speechQueueId=0;
 
-  function byId(id){return document.getElementById(id);}
-  function setStatus(msg){ const el=byId('maAiStatus'); if(el) el.textContent=msg; }
+  function byId(id){ return document.getElementById(id); }
+  function setStatus(msg){ const el=byId('maAiStatus'); if(el) el.textContent=msg||'待機中'; }
   function setTranscript(msg){ const el=byId('maAiTranscript'); if(!el) return; el.textContent=msg||''; el.classList.toggle('on',!!msg); }
-  function speak(text){ if(!text||!('speechSynthesis' in window)) return; const ut=new SpeechSynthesisUtterance(text); ut.lang='ja-JP'; ut.rate=1.02; ut.pitch=1.0; window.speechSynthesis.cancel(); window.speechSynthesis.speak(ut); }
   function currentTab(){ if(byId('ts')?.classList.contains('on')) return 's'; if(byId('tc')?.classList.contains('on')) return 'c'; return 'm'; }
   function togglePanel(force){ aiState.panelOpen = typeof force==='boolean' ? force : !aiState.panelOpen; refreshUi(); }
   function refreshUi(){
@@ -795,14 +824,68 @@ function delC(idx){
     if(mic){ mic.textContent = aiState.listening ? '音声停止' : '音声開始'; mic.disabled = !aiState.recognitionSupported; }
     if(send) send.disabled = aiState.busy;
   }
-  function scheduleStop(){ clearTimeout(silenceTimer); silenceTimer=setTimeout(()=>{ if(aiState.listening) stopListening(); }, 1400); }
+  function scrollToId(id){ const el=byId(id); if(el && el.scrollIntoView) el.scrollIntoView({behavior:'smooth', block:'center'}); }
   function stopListening(){ try{ aiState.recognition && aiState.recognition.stop(); }catch(e){} clearTimeout(silenceTimer); }
+  function scheduleStop(){ clearTimeout(silenceTimer); silenceTimer=setTimeout(()=>{ if(aiState.listening) stopListening(); }, 1800); }
+  function startListening(){
+    if(!aiState.recognitionSupported || aiState.listening) return;
+    try{ finalBuffer=''; aiState.lastTranscript=''; aiState.recognition.start(); }
+    catch(e){ setStatus('音声認識を開始できませんでした。マイクボタンを押して再度お試しください。'); }
+  }
+  function speak(text, opts={}){
+    setStatus(text);
+    if(!text || !('speechSynthesis' in window) || aiState.speechEnabled===false){
+      if(opts.autoListen) setTimeout(startListening, opts.delay||450);
+      return;
+    }
+    const id=++speechQueueId;
+    try{ window.speechSynthesis.cancel(); }catch(e){}
+    const ut=new SpeechSynthesisUtterance(text);
+    ut.lang='ja-JP';
+    ut.rate=1.0;
+    ut.pitch=1.0;
+    ut.onend=()=>{
+      if(id!==speechQueueId) return;
+      if(opts.autoListen) setTimeout(startListening, opts.delay||450);
+    };
+    ut.onerror=()=>{ if(opts.autoListen) setTimeout(startListening, opts.delay||450); };
+    window.speechSynthesis.speak(ut);
+  }
+  function promptAndListen(text, stage){
+    flow.active=true;
+    flow.stage=stage;
+    flow.lastPrompt=text;
+    togglePanel(true);
+    setTranscript('');
+    speak(text, {autoListen:true});
+  }
+  function finishFlow(text, options={}){
+    flow.active=false;
+    flow.stage='idle';
+    flow.lastPrompt='';
+    if(options.keepMode!==true){ flow.mode=null; }
+    setStatus(text);
+    if(options.scrollId) scrollToId(options.scrollId);
+    speak(text, {autoListen:!!options.autoListen});
+  }
+  function resetFlow(){
+    flow.active=false; flow.stage='idle'; flow.mode=null; flow.firstIdx=''; flow.secondIdx=''; flow.connectorKey='0'; flow.lastPrompt='';
+  }
+
   function initRecognition(){
     const SR=window.SpeechRecognition || window.webkitSpeechRecognition; if(!SR) return null;
-    const rec=new SR(); rec.lang='ja-JP'; rec.interimResults=true; rec.continuous=true; rec.maxAlternatives=3;
-    rec.onstart=()=>{ aiState.listening=true; finalBuffer=''; aiState.lastTranscript=''; setStatus('音声認識を開始しました。終わったら自動で候補を案内します。'); refreshUi(); };
+    const rec=new SR();
+    rec.lang='ja-JP';
+    rec.interimResults=true;
+    rec.continuous=true;
+    rec.maxAlternatives=3;
+    rec.onstart=()=>{ aiState.listening=true; finalBuffer=''; aiState.lastTranscript=''; setStatus((flow.lastPrompt||'音声をどうぞ')+'\n\n聞き取り中…'); refreshUi(); };
     rec.onerror=e=>{ aiState.listening=false; refreshUi(); setStatus('音声認識エラー: '+(e.error||'unknown')); };
-    rec.onend=()=>{ aiState.listening=false; refreshUi(); const transcript=(finalBuffer||aiState.lastTranscript||'').trim(); if(transcript){ sendAiCommand(transcript); } };
+    rec.onend=()=>{
+      aiState.listening=false; refreshUi();
+      const transcript=(finalBuffer||aiState.lastTranscript||'').trim();
+      if(transcript) sendAiCommand(transcript);
+    };
     rec.onresult=e=>{
       let interim='';
       for(let i=e.resultIndex;i<e.results.length;i++){
@@ -818,28 +901,25 @@ function delC(idx){
   }
 
   function nrm(s){ return String(s||'').normalize('NFKC').toLowerCase().replace(/[\s　]+/g,' ').trim(); }
+  function tight(s){ return nrm(s).replace(/[\s　]/g,''); }
   function contains(text, words){ const t=nrm(text); return words.some(w=>t.includes(nrm(w))); }
   function normalizeNumberToken(token){ return String(token||'').replace(/,/g,'.').replace(/点/g,'.').replace(/。/g,'.').replace(/．/g,'.'); }
   function extractVesselDiameter(text){
     const raw=String(text||'').normalize('NFKC');
     const patterns=[
-      /血管径[^\d]{0,8}(\d+(?:[\.,．]\d+)?)/,
-      /(\d+(?:[\.,．]\d+)?)\s*mm/,
+      /血管径[^\d]{0,10}(\d+(?:[\.,．]\d+)?)/,
+      /(\d+(?:[\.,．]\d+)?)\s*mm/i,
       /(\d+)点(\d+)/,
       /(\d+(?:[\.,．]\d+)?)/
     ];
     for(const p of patterns){
       const m=raw.match(p);
       if(!m) continue;
-      let val;
-      if(m[2]!==undefined) val=parseFloat(m[1]+'.'+m[2]);
-      else val=parseFloat(normalizeNumberToken(m[1]));
+      const val = m[2]!==undefined ? parseFloat(m[1]+'.'+m[2]) : parseFloat(normalizeNumberToken(m[1]));
       if(!isNaN(val) && val>=0.8 && val<=5) return val;
     }
     return null;
   }
-  function formatMm(val){ return (Math.round(val*1000)/1000).toFixed(val>=10?1:(val>=1?2:3)); }
-  function topNames(list, count){ return list.slice(0,count).map(c=>c.name).join('、'); }
   function getSelectionCandidates(val){
     if(typeof cats==='undefined') return [];
     let flt=[];
@@ -849,6 +929,41 @@ function delC(idx){
       flt=cats.filter(c=>c.tip>=lo && c.tip<=val);
     }
     return [...flt].sort((a,b)=>b.tip-a.tip);
+  }
+  function buildAliases(item){
+    const aliases=new Set([item.name, item.name.replace(/（.*?）/g,''), item.name.replace(/\([^)]*\)/g,''), item.name.replace(/[\s　]/g,'')]);
+    const manual={
+      'React71':['react71','react 71','リアクト71','リア71'],
+      'React68':['react68','react 68','リアクト68','リア68'],
+      'RED72':['red72','red 72','レッド72'],
+      'RED68':['red68','red 68','レッド68'],
+      'RED62':['red62','red 62','レッド62'],
+      'APRO':['apro','エープロ','アプロ'],
+      'SALVA71':['salva71','salva 71','サルバ71'],
+      'SALVA68':['salva68','salva 68','サルバ68'],
+      'SALVA60':['salva60','salva 60','サルバ60'],
+      'Vecta74':['vecta74','vecta 74','ベクタ74'],
+      'Vecta71':['vecta71','vecta 71','ベクタ71'],
+      'CEREGLIDE71':['cereglide71','cereglide 71','セレグライド71','セレグライド'],
+      'Catalyst6':['catalyst6','catalyst 6','カタリスト6'],
+      'Catalyst5':['catalyst5','catalyst 5','カタリスト5'],
+      'AXS Vecta 71':['axs vecta 71','vecta 71','ベクタ71'],
+      'AXS Vecta 74':['axs vecta 74','vecta 74','ベクタ74']
+    };
+    Object.entries(manual).forEach(([k,v])=>{ if(item.name.includes(k)) v.forEach(x=>aliases.add(x)); });
+    return [...aliases].filter(Boolean).map(tight);
+  }
+  function findBestCatheterMatch(text, allowedIdxs=null){
+    const t=tight(text);
+    let best=null;
+    cats.forEach((c,idx)=>{
+      if(allowedIdxs && !allowedIdxs.has(idx)) return;
+      const aliases=buildAliases(c);
+      let score=0;
+      aliases.forEach(a=>{ if(a && t.includes(a)) score=Math.max(score, a.length); });
+      if(score>0 && (!best || score>best.score || (score===best.score && c.tip>(best.item?.tip||0)))) best={idx,item:c,score};
+    });
+    return best;
   }
   function getCoaxialCandidatesByFirstIndex(i1){
     if(i1==null || i1==='' || !cats[parseInt(i1)]) return [];
@@ -871,206 +986,237 @@ function delC(idx){
   function selectFirstByIndex(idx){ if(idx==null || idx==='') return false; sw('c'); byId('c1').value=String(idx); onC1(); return true; }
   function selectSecondByIndex(idx){ if(idx==null || idx==='') return false; byId('c2').value=String(idx); calcCo(); return true; }
   function setVesselDiameter(val){ sw('s'); byId('vd').value=val.toFixed(2); upd(); }
-  function setConnectorFromText(text){
-    const t=nrm(text);
-    const yc=byId('yc');
-    if(!yc) return false;
-    if(/(なし|不要|ゼロ|0cm|0 cm)/.test(t)){ yc.value='0'; calcCo(); return true; }
-    const ordered=[8.9,8.0,7.5,6.4,6.2,5.7,5.6,5.5,5.0,4.1,3.8];
-    for(const num of ordered){
-      const key=String(num);
-      if(t.includes(key)) { yc.value=key; calcCo(); return true; }
-    }
-    return false;
-  }
-  function buildAliases(item){
-    const aliases=new Set([item.name, item.name.replace(/（.*?）/g,''), item.name.replace(/\([^)]*\)/g,''), item.name.replace(/[\s　]/g,'')]);
-    const manual={
-      'React71':['react71','react 71','リアクト71','リア71'],
-      'React68':['react68','react 68','リアクト68','リア68'],
-      'RED72':['red72','red 72','レッド72'],
-      'RED68':['red68','red 68','レッド68'],
-      'RED62':['red62','red 62','レッド62'],
-      'APRO':['apro','エープロ','アプロ'],
-      'SALVA71':['salva71','salva 71','サルバ71'],
-      'SALVA68':['salva68','salva 68','サルバ68'],
-      'SALVA60':['salva60','salva 60','サルバ60'],
-      'Vecta74':['vecta74','vecta 74','ベクタ74'],
-      'Vecta71':['vecta71','vecta 71','ベクタ71'],
-      'CEREGLIDE71':['cereglide71','cereglide 71','セレグライド71','セレグライド'],
-      'Catalyst6':['catalyst6','catalyst 6','カタリスト6'],
-      'Catalyst5':['catalyst5','catalyst 5','カタリスト5'],
-      'AXS Vecta 71':['axs vecta 71','vecta 71','ベクタ 71'],
-      'AXS Vecta 74':['axs vecta 74','vecta 74','ベクタ 74']
-    };
-    Object.entries(manual).forEach(([k,v])=>{ if(item.name.includes(k)) v.forEach(x=>aliases.add(x)); });
-    return [...aliases].filter(Boolean).map(x=>nrm(x));
-  }
-  function findBestCatheterMatch(text){
-    const t=nrm(text).replace(/[\s　]/g,'');
-    let best=null;
-    cats.forEach((c,idx)=>{
-      const aliases=buildAliases(c);
-      let score=0;
-      aliases.forEach(a=>{
-        const aa=a.replace(/[\s　]/g,'');
-        if(!aa) return;
-        if(t.includes(aa)) score=Math.max(score, aa.length);
-      });
-      if(score>0 && (!best || score>best.score || (score===best.score && c.tip>(best.item?.tip||0)))) best={idx,item:c,score};
-    });
-    return best;
-  }
-  function filterScopedText(text, scope){
-    const raw=String(text||'');
-    const i1=raw.match(/1本目[^。\n]*|外側[^。\n]*|最初[^。\n]*/i);
-    const i2=raw.match(/2本目[^。\n]*|内側[^。\n]*|次[^。\n]*|二本目[^。\n]*/i);
-    if(scope==='first' && i1) return i1[0];
-    if(scope==='second' && i2) return i2[0];
-    return raw;
-  }
-  function summarizeSelectionCandidates(val){
-    const list=getSelectionCandidates(val);
-    if(!list.length) return {text:`血管径 ${val.toFixed(2)} ミリに該当する候補は見つかりませんでした。`, list};
-    const lead=list[0];
-    const text=`血管径 ${val.toFixed(2)} ミリです。候補は ${topNames(list, Math.min(4,list.length))} です。最大口径候補は ${lead.name}、先端外径 ${lead.tipStr||formatMm(lead.tip)+'mm'} です。`;
-    return {text,list};
-  }
-  function summarizeCoaxialCandidates(i1){
-    const c1=cats[parseInt(i1)];
-    const fits=getCoaxialCandidatesByFirstIndex(i1);
-    if(!c1) return {text:'1本目が未選択です。', fits};
-    if(!fits.length) return {text:`${c1.name} に入る2本目候補はありません。`, fits};
-    const best=fits[0];
-    selectSecondByIndex(best.idx);
-    const info=getCoaxialAssessment(String(i1), String(best.idx), byId('yc').value);
-    const protrusion=info&&info.prot!=null ? `${info.prot>0?'先端':''}${info.prot.toFixed(1)}センチ${info.prot>0?'出ます':info.prot===0?'でちょうどです':'足りません'}` : '突出長は計算できません';
-    const text=`${c1.name} に入る候補は ${topNames(fits.map(x=>x.c), Math.min(4,fits.length))} です。代表候補は ${best.c.name} です。${protrusion}。`;
-    return {text,fits,best,info};
+  function buildCandidateSpeech(list, accessor){
+    if(!list.length) return '候補はありません。';
+    return list.slice(0,5).map((entry,idx)=>`候補${idx+1}は ${accessor(entry)} です。`).join(' ');
   }
   function summarizeSelectedPair(i1,i2){
     const info=getCoaxialAssessment(String(i1), String(i2), byId('yc').value);
     if(!info) return '同軸判定に必要なデータが不足しています。';
     const fitMsg=info.canFit===true ? '挿入可能です。' : info.canFit===false ? '挿入不可です。' : '挿入可否はデータ不足です。';
     const diffMsg=info.diff!=null ? `クリアランスは ${info.diff.toFixed(3)} ミリです。` : '';
-    const protMsg=info.prot!=null ? `先端 ${info.prot>0?'+' : ''}${info.prot.toFixed(1)} センチ ${info.prot>0?'出ます':'です'}。` : '突出長は計算できません。';
-    return `${info.c2.name} です。${fitMsg}${diffMsg}${protMsg}`;
+    const protMsg=info.prot!=null ? `先端突出長は ${info.prot>0?'+':''}${info.prot.toFixed(1)} センチです。` : '先端突出長は計算できません。';
+    return `${info.c2.name} を2本目に反映しました。${fitMsg}${diffMsg}${protMsg}`;
+  }
+  function connectorAliases(){
+    const yc=byId('yc');
+    if(!yc) return [];
+    const aliases=[];
+    [...yc.options].forEach(opt=>{
+      const text=opt.textContent.trim();
+      const val=opt.value;
+      const set=new Set([text, text.replace(/（.*?）/g,''), text.replace(/[\s　]/g,''), val+'cm', val]);
+      if(val==='0'){ ['なし','使用なし','不要','なしです','yコネなし','tコネなし','使用しません'].forEach(x=>set.add(x)); }
+      if(text.includes('メリットメディカル Tコネ（3.8')) ['メリットtコネ','3.8','3.8cm','メリット3.8'].forEach(x=>set.add(x));
+      if(text.includes('富士システムズ')) ['富士','t-コネ','tコネ4.1','4.1','4.1cm'].forEach(x=>set.add(x));
+      if(text.includes('メリットメディカル Tコネ（5.0')) ['メリット5.0','5.0','5.0cm'].forEach(x=>set.add(x));
+      if(text.includes('コスモテック')) ['コスモテック','yコネ5.5','5.5','5.5cm'].forEach(x=>set.add(x));
+      if(text.includes('テルモ')) ['テルモ','yコネ5.6','5.6','5.6cm'].forEach(x=>set.add(x));
+      if(text.includes('TMP スマートコネクト')) ['tmp','スマートコネクト','5.7','5.7cm'].forEach(x=>set.add(x));
+      if(text.includes('iConnect')) ['アイコネクト','iconnect','6.2','6.2cm'].forEach(x=>set.add(x));
+      if(text.includes('Super Short')) ['スーパーショート','okay super short','6.4','6.4cm'].forEach(x=>set.add(x));
+      if(text.includes('Optimo 付属トリコネ')) ['optimo','トリコネ','7.5','7.5cm'].forEach(x=>set.add(x));
+      if(text.includes('メリットメディカル Yコネ（8.0')) ['メリットyコネ','8.0','8.0cm'].forEach(x=>set.add(x));
+      if(text.includes('OKAY Short')) ['okay short','ショート','8.9','8.9cm'].forEach(x=>set.add(x));
+      aliases.push({value:val,label:text,keys:[...set].map(tight)});
+    });
+    return aliases;
+  }
+  function findConnectorMatch(text){
+    const t=tight(text);
+    if(/(なし|不要|使用なし|使わない|使いません)/.test(nrm(text))) return {value:'0', label:byId('yc').selectedOptions?.[0]?.textContent || 'Yコネ・Tコネ 無し（0cm）'};
+    const items=connectorAliases();
+    let best=null;
+    items.forEach(item=>{
+      let score=0;
+      item.keys.forEach(k=>{ if(k && t.includes(k)) score=Math.max(score, k.length); });
+      if(score>0 && (!best || score>best.score)) best={value:item.value,label:item.label,score};
+    });
+    return best;
+  }
+  function setConnectorByValue(value){ const yc=byId('yc'); if(!yc) return false; yc.value=String(value); calcCo(); return true; }
+
+  function startGuidedFlow(){
+    togglePanel(true);
+    resetFlow();
+    promptAndListen('選択確認ですか？ 同軸確認ですか？', 'chooseMode');
+  }
+  function promptForSecondDevice(firstName, fits){
+    flow.stage='awaitSecondDevice';
+    const text=`${firstName} を1本目に選択しました。 ${buildCandidateSpeech(fits, x=>x.c.name)} 2本目のデバイスを教えてください。`;
+    flow.lastPrompt=text;
+    scrollToId('c2');
+    speak(text, {autoListen:true});
+  }
+  function promptForConnector(){
+    flow.stage='awaitConnector';
+    const text='Yコネの使用はありますか？ ある場合はどちらのYコネをお使いですか？';
+    flow.lastPrompt=text;
+    scrollToId('yc');
+    speak(text, {autoListen:true});
+  }
+  function handleGuidedInput(text){
+    const raw=String(text||'').trim();
+    const lower=nrm(raw);
+    if(!raw) return '音声が取得できませんでした。もう一度お願いします。';
+
+    if(flow.stage==='chooseMode'){
+      if(contains(lower,['選択'])){ flow.mode='selection'; sw('s'); scrollToId('ts'); promptAndListen('血管径をお伝えください。', 'awaitVessel'); return null; }
+      if(contains(lower,['同軸'])){ flow.mode='coaxial'; sw('c'); scrollToId('tc'); promptAndListen('1本目のデバイスを教えてください。', 'awaitFirstDevice'); return null; }
+      promptAndListen('選択確認ですか？ 同軸確認ですか？', 'chooseMode');
+      return null;
+    }
+
+    if(flow.stage==='awaitVessel'){
+      const vessel=extractVesselDiameter(raw);
+      if(vessel==null){ promptAndListen('血管径を認識できませんでした。もう一度、血管径をお伝えください。', 'awaitVessel'); return null; }
+      setVesselDiameter(vessel);
+      const list=getSelectionCandidates(vessel);
+      const text=list.length
+        ? `血管径 ${vessel.toFixed(2)} ミリです。画面に候補を表示しました。 ${buildCandidateSpeech(list, x=>x.name)}`
+        : `血管径 ${vessel.toFixed(2)} ミリに該当する候補は見つかりませんでした。`;
+      finishFlow(text, {scrollId:'tw'});
+      return null;
+    }
+
+    if(flow.stage==='awaitFirstDevice'){
+      const firstMatch=findBestCatheterMatch(raw);
+      if(!firstMatch){ promptAndListen('1本目のデバイスを認識できませんでした。もう一度、1本目のデバイス名を教えてください。', 'awaitFirstDevice'); return null; }
+      flow.firstIdx=String(firstMatch.idx);
+      selectFirstByIndex(firstMatch.idx);
+      const fits=getCoaxialCandidatesByFirstIndex(firstMatch.idx);
+      if(!fits.length){ finishFlow(`${firstMatch.item.name} を1本目に選択しましたが、2本目に入る候補はありません。`, {scrollId:'cr'}); return null; }
+      promptForSecondDevice(firstMatch.item.name, fits);
+      return null;
+    }
+
+    if(flow.stage==='awaitSecondDevice'){
+      const fits=getCoaxialCandidatesByFirstIndex(flow.firstIdx);
+      const allowed=new Set(fits.map(x=>x.idx));
+      const secondMatch=findBestCatheterMatch(raw, allowed);
+      if(!secondMatch){
+        const firstName=cats[parseInt(flow.firstIdx)]?.name || '1本目';
+        flow.lastPrompt = `2本目の候補は、${buildCandidateSpeech(fits, x=>x.c.name)} です。2本目のデバイスを教えてください。`;
+        speak(flow.lastPrompt, {autoListen:true});
+        return null;
+      }
+      flow.secondIdx=String(secondMatch.idx);
+      selectSecondByIndex(secondMatch.idx);
+      promptForConnector();
+      return null;
+    }
+
+    if(flow.stage==='awaitConnector'){
+      const match=findConnectorMatch(raw);
+      if(!match){
+        flow.lastPrompt='Yコネを認識できませんでした。使用なし、またはYコネ名をもう一度教えてください。';
+        speak(flow.lastPrompt, {autoListen:true});
+        return null;
+      }
+      flow.connectorKey=String(match.value);
+      setConnectorByValue(match.value);
+      scrollToId('cr');
+      const summary=summarizeSelectedPair(flow.firstIdx, flow.secondIdx);
+      finishFlow(`${match.label} を反映しました。 ${summary}`, {scrollId:'cr'});
+      return null;
+    }
+
+    return null;
   }
 
-  function applyAiCommand(text){
+  function applyManualCommand(text){
     const raw=String(text||'').trim();
     const lower=nrm(raw);
     if(!raw) return '音声またはテキストを入力してください。';
-
-    if(contains(lower,['選択タブ','選択画面','血管径']) && !extractVesselDiameter(raw)) { sw('s'); return '選択タブに切り替えました。'; }
-    if(contains(lower,['同軸','coaxial','二本目','1本目'])) sw('c');
-    if(contains(lower,['管理','データ管理','登録一覧'])) { sw('m'); return '管理タブに切り替えました。'; }
+    if(contains(lower,['ガイド開始','音声ガイド','最初から'])){ startGuidedFlow(); return '音声ガイドを開始します。'; }
     if(contains(lower,['選択に切り替え'])) { sw('s'); return '選択タブに切り替えました。'; }
     if(contains(lower,['同軸に切り替え'])) { sw('c'); return '同軸タブに切り替えました。'; }
-
+    if(contains(lower,['選択ガイド'])){ flow.mode='selection'; sw('s'); promptAndListen('血管径をお伝えください。', 'awaitVessel'); return '選択ガイドを開始します。'; }
+    if(contains(lower,['同軸ガイド'])){ flow.mode='coaxial'; sw('c'); promptAndListen('1本目のデバイスを教えてください。', 'awaitFirstDevice'); return '同軸ガイドを開始します。'; }
     const vessel=extractVesselDiameter(raw);
     if(vessel!=null){
       setVesselDiameter(vessel);
-      const out=summarizeSelectionCandidates(vessel);
-      return out.text;
+      const list=getSelectionCandidates(vessel);
+      scrollToId('tw');
+      return list.length ? `血管径 ${vessel.toFixed(2)} ミリです。 ${buildCandidateSpeech(list, x=>x.name)}` : `血管径 ${vessel.toFixed(2)} ミリに該当する候補は見つかりませんでした。`;
     }
-
     if(/(リセット|クリア|初期化)/.test(lower)){
       if(currentTab()==='s'){ byId('vd').value=''; upd(); return '血管径入力をリセットしました。'; }
       if(currentTab()==='c'){ byId('c1').value=''; onC1(); byId('yc').value='0'; return '同軸選択をリセットしました。'; }
       return 'この画面でリセットできる項目を初期化しました。';
     }
-
-    const firstScope=filterScopedText(raw,'first');
-    const secondScope=filterScopedText(raw,'second');
-    const firstMatch=findBestCatheterMatch(firstScope);
-    const secondMatch=findBestCatheterMatch(secondScope);
-    const genericMatch=(!firstMatch && !secondMatch) ? findBestCatheterMatch(raw) : null;
-
-    if(setConnectorFromText(raw) && byId('c1').value && byId('c2').value){
-      calcCo();
-      return 'コネクター条件を更新しました。' + summarizeSelectedPair(byId('c1').value, byId('c2').value);
-    }
-
-    if(contains(lower,['1本目','外側','最初']) && firstMatch){
-      selectFirstByIndex(firstMatch.idx);
-      const fits=getCoaxialCandidatesByFirstIndex(firstMatch.idx);
-      if(/(2本目|候補|入る|おすすめ|何)/.test(lower)) return summarizeCoaxialCandidates(firstMatch.idx).text;
-      return `${firstMatch.item.name} を1本目に選択しました。2本目候補は ${fits.length} 件です。`;
-    }
-
-    if((contains(lower,['2本目','内側','二本目']) || currentTab()==='c') && secondMatch && byId('c1').value!==''){
-      selectSecondByIndex(secondMatch.idx);
-      return summarizeSelectedPair(byId('c1').value, secondMatch.idx);
-    }
-
-    if(/(2本目|二本目).*(何|候補|どれ|おすすめ|入る)|入る吸引カテーテル|2本目は\?$/.test(lower) || (currentTab()==='c' && /(候補|おすすめ|何が入る|どれが入る)/.test(lower))){
-      const i1=byId('c1').value;
-      if(i1==='') return '先に1本目の吸引カテーテルを選択してください。';
-      return summarizeCoaxialCandidates(i1).text;
-    }
-
-    if(currentTab()==='c' && genericMatch){
-      if(byId('c1').value===''){
-        selectFirstByIndex(genericMatch.idx);
-        return `${genericMatch.item.name} を1本目に選択しました。`;
-      }
-      selectSecondByIndex(genericMatch.idx);
-      return summarizeSelectedPair(byId('c1').value, genericMatch.idx);
-    }
-
-    if(contains(lower,['候補','おすすめ']) && currentTab()==='s'){
-      const val=parseFloat(byId('vd').value);
-      if(!isNaN(val)) return summarizeSelectionCandidates(val).text;
-      return '先に血管径を入力してください。';
-    }
-
-    return '解釈できませんでした。例として「血管径2.1ミリ」「1本目 React71」「2本目入る吸引カテーテルは？」のように話してください。';
+    const firstMatch=findBestCatheterMatch(raw);
+    if(currentTab()==='c' && firstMatch && !byId('c1').value){ selectFirstByIndex(firstMatch.idx); return `${firstMatch.item.name} を1本目に選択しました。`; }
+    if(currentTab()==='c' && firstMatch && byId('c1').value && String(firstMatch.idx)!==String(byId('c1').value)){ selectSecondByIndex(firstMatch.idx); return summarizeSelectedPair(byId('c1').value, firstMatch.idx); }
+    const connector=findConnectorMatch(raw);
+    if(currentTab()==='c' && connector && byId('c1').value && byId('c2').value){ setConnectorByValue(connector.value); return `${connector.label} を反映しました。 ${summarizeSelectedPair(byId('c1').value, byId('c2').value)}`; }
+    return '解釈できませんでした。ガイド開始、選択ガイド、同軸ガイド、血管径、デバイス名のいずれかで操作してください。';
   }
 
   async function sendAiCommand(text){
     const transcript=String(text||'').trim();
     if(!transcript || aiState.busy) return;
-    aiState.busy=true; refreshUi(); setTranscript(transcript); setStatus('解析中…\n'+transcript);
+    aiState.busy=true;
+    refreshUi();
+    setTranscript(transcript);
     try{
-      const message=applyAiCommand(transcript);
-      setStatus(message);
-      speak(message);
+      const handled = flow.active ? handleGuidedInput(transcript) : applyManualCommand(transcript);
+      if(handled){ setStatus(handled); speak(handled); }
     }catch(err){
       setStatus('解析エラー: '+(err&&err.message?err.message:err));
-    }finally{ aiState.busy=false; refreshUi(); }
+    }finally{
+      aiState.busy=false;
+      refreshUi();
+    }
+  }
+
+  function hookLogin(){
+    const originalDoLogin=window.doLogin;
+    if(typeof originalDoLogin!=='function') return;
+    window.doLogin=function(){
+      const before=byId('app')?.style.display;
+      originalDoLogin.apply(this, arguments);
+      const after=byId('app')?.style.display;
+      if(after==='block' && before!=='block' && !flow.welcomeStarted){
+        flow.welcomeStarted=true;
+        aiState.loggedIn=true;
+        setTimeout(()=>{ togglePanel(true); startGuidedFlow(); }, 650);
+      }
+    };
   }
 
   function createUi(){
     const dock=document.createElement('div');
-    dock.id='maAiDock'; dock.className='ma-ai-dock';
+    dock.id='maAiDock';
+    dock.className='ma-ai-dock';
     dock.innerHTML='\
       <div id="maAiPanel" class="ma-ai-panel hide">\
         <div class="ma-ai-head">\
           <div class="ma-ai-title">\
-            <strong>Matching Aspiration AI</strong>\
-            <span>音声だけで血管径入力・候補表示・1本目/2本目選択・突出長の読み上げに対応</span>\
+            <strong>Matching Aspiration Voice Guide</strong>\
+            <span>ログイン後に自動開始。選択・同軸・Yコネまで音声でガイドします。</span>\
           </div>\
           <button id="maAiClose" class="ma-secondary" style="padding:10px 12px">閉じる</button>\
         </div>\
         <div id="maAiStatus" class="ma-status">待機中</div>\
         <div id="maAiTranscript" class="ma-transcript"></div>\
-        <div class="ma-field"><textarea id="maAiInput" placeholder="例: 血管径 2.1 ミリ\n例: 1本目 React71\n例: 2本目入る吸引カテーテルは？\n例: 2本目は SALVA71\n例: Yコネなし"></textarea></div>\
+        <div class="ma-field"><textarea id="maAiInput" placeholder="例: ガイド開始\n例: 選択\n例: 血管径 2.1 ミリ\n例: 同軸\n例: 1本目 React71\n例: 2本目 SALVA71\n例: 使用なし"></textarea></div>\
         <div class="ma-row">\
           <button id="maAiSend" class="ma-primary">AIで反映</button>\
           <button id="maAiMic" class="ma-secondary">音声開始</button>\
         </div>\
         <div class="ma-grid">\
-          <button class="ma-chip" data-cmd="選択に切り替え"><b>血管径入力</b>選択タブへ移動</button>\
-          <button class="ma-chip" data-cmd="同軸に切り替え"><b>同軸判定</b>1本目 / 2本目を操作</button>\
-          <button class="ma-chip" data-cmd="血管径 2.1 ミリ"><b>候補表示</b>血管径から候補提示</button>\
-          <button class="ma-chip" data-cmd="2本目入る吸引カテーテルは？"><b>2本目候補</b>自動選択して読み上げ</button>\
+          <button class="ma-chip" data-cmd="ガイド開始"><b>音声ガイド</b>最初から開始</button>\
+          <button class="ma-chip" data-cmd="選択ガイド"><b>選択確認</b>血管径から候補表示</button>\
+          <button class="ma-chip" data-cmd="同軸ガイド"><b>同軸確認</b>1本目→2本目→Yコネ</button>\
+          <button class="ma-chip" data-cmd="使用なし"><b>Yコネなし</b>0cm 条件で計算</button>\
         </div>\
         <div class="ma-row">\
-          <button class="ma-pill" data-cmd="選択をリセット">選択 reset</button>\
-          <button class="ma-pill" data-cmd="同軸をリセット">同軸 reset</button>\
+          <button class="ma-pill" data-cmd="選択に切り替え">選択タブ</button>\
+          <button class="ma-pill" data-cmd="同軸に切り替え">同軸タブ</button>\
+          <button class="ma-pill" data-cmd="ガイド開始">再開</button>\
         </div>\
-        <div class="ma-note">Safari / Chrome の最新版で音声認識を利用できます。数字は「2.1ミリ」「2点1ミリ」の両方に対応します。</div>\
+        <div class="ma-note">iPhone のホーム画面追加にも対応した PWA アイコンを同梱しています。音声は Safari / Chrome の最新版を推奨します。</div>\
       </div>\
       <button id="maAiFab" class="ma-fab" aria-label="Open AI assistant">AI</button>';
     document.body.appendChild(dock);
@@ -1079,7 +1225,7 @@ function delC(idx){
     if(hdr && !document.getElementById('maHeaderOpen')){
       const wrap=document.createElement('div');
       wrap.className='ma-badge-wrap';
-      wrap.innerHTML='<span class="ma-badge">VOICE AI · Aspiration Control</span><button id="maHeaderOpen" class="ma-header-btn primary">AIアシスタント</button>';
+      wrap.innerHTML='<span class="ma-badge">VOICE GUIDE · AUTO START</span><button id="maHeaderOpen" class="ma-header-btn primary">AIアシスタント</button>';
       hdr.appendChild(wrap);
     }
 
@@ -1087,20 +1233,38 @@ function delC(idx){
     byId('maAiClose').addEventListener('click',()=>togglePanel(false));
     byId('maAiSend').addEventListener('click',()=>sendAiCommand(byId('maAiInput').value));
     byId('maAiInput').addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter') sendAiCommand(byId('maAiInput').value); });
-    byId('maAiMic').addEventListener('click',()=>{ if(!aiState.recognitionSupported){ setStatus('このブラウザでは音声認識が使えません。Safari/Chrome の最新版を推奨します。'); return; } if(aiState.listening) stopListening(); else { setTranscript(''); finalBuffer=''; aiState.lastTranscript=''; aiState.recognition.start(); } });
+    byId('maAiMic').addEventListener('click',()=>{ if(!aiState.recognitionSupported){ setStatus('このブラウザでは音声認識が使えません。テキスト入力または Safari / Chrome の最新版をお試しください。'); return; } if(aiState.listening) stopListening(); else startListening(); });
     byId('maHeaderOpen')?.addEventListener('click',()=>togglePanel(true));
     dock.querySelectorAll('[data-cmd]').forEach(btn=>btn.addEventListener('click',()=>sendAiCommand(btn.dataset.cmd)));
-    setStatus('待機中\n音声またはテキストで操作できます。');
+    setStatus('待機中\nログインすると音声ガイドが自動開始します。');
+  }
+
+  function exposeTestApi(){
+    window.maVoiceTest={
+      startGuidedFlow,
+      process:text=>sendAiCommand(text),
+      getState:()=>({
+        flow:{...flow},
+        currentTab:currentTab(),
+        c1:byId('c1')?.value||'',
+        c2:byId('c2')?.value||'',
+        yc:byId('yc')?.value||'',
+        vessel:byId('vd')?.value||''
+      })
+    };
   }
 
   window.addEventListener('DOMContentLoaded',()=>{
     createUi();
+    exposeTestApi();
     aiState.recognition=initRecognition();
     aiState.recognitionSupported=!!aiState.recognition;
     refreshUi();
+    hookLogin();
   });
 })();
 </script>
+
 
 </body>
 </html>

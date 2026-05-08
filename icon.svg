@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b1422"/>
+      <stop offset="100%" stop-color="#0a162a"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00c8ff"/>
+      <stop offset="100%" stop-color="#6fffe0"/>
+    </linearGradient>
+  </defs>
+  <rect x="52" y="52" width="920" height="920" rx="220" fill="url(#bg)"/>
+  <g opacity="0.18" stroke="#00c8ff" stroke-width="2">
+    <path d="M160 160H864"/><path d="M160 270H864"/><path d="M160 380H864"/><path d="M160 490H864"/>
+    <path d="M160 600H864"/><path d="M160 710H864"/><path d="M160 820H864"/>
+  </g>
+  <g fill="none" stroke="#00c8ff">
+    <circle cx="512" cy="410" r="215" opacity="0.2" stroke-width="8"/>
+    <circle cx="512" cy="410" r="190" opacity="0.28" stroke-width="8"/>
+    <circle cx="512" cy="410" r="158" opacity="0.4" stroke-width="8"/>
+  </g>
+  <path d="M360 395H420L452 340L505 470L552 360L605 445H662" fill="none" stroke="#73ffd6" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="512" cy="410" r="72" fill="none" stroke="#73ffd6" stroke-width="10" opacity="0.92"/>
+  <circle cx="512" cy="410" r="42" fill="none" stroke="#eef9ff" stroke-width="10" opacity="0.95"/>
+  <g>
+    <rect x="250" y="540" width="510" height="62" rx="30" fill="#eef9ff" fill-opacity="0.95"/>
+    <rect x="250" y="548" width="480" height="46" rx="24" fill="#101e2f"/>
+    <rect x="250" y="555" width="468" height="32" rx="20" fill="url(#cyan)" fill-opacity="0.92"/>
+    <path d="M760 540L850 570L760 602Z" fill="#eef9ff" fill-opacity="0.95"/>
+    <path d="M760 553L820 570L760 589Z" fill="#101e2f"/>
+  </g>
+  <g fill="#baf4ff">
+    <circle cx="318" cy="560" r="7"/><circle cx="390" cy="560" r="7"/><circle cx="462" cy="560" r="7"/>
+    <circle cx="534" cy="560" r="7"/><circle cx="606" cy="560" r="7"/><circle cx="678" cy="560" r="7"/>
+  </g>
+  <text x="148" y="774" font-size="44" font-family="DejaVu Sans, Arial, sans-serif" fill="#8ab0d0">MATCHING</text>
+  <text x="146" y="890" font-size="142" font-weight="700" font-family="DejaVu Sans, Arial, sans-serif" fill="#eef8ff">ASPIRATION</text>
+  <text x="150" y="950" font-size="44" font-family="DejaVu Sans, Arial, sans-serif" fill="#5cecff">AI VOICE GUIDE</text>
+</svg>
