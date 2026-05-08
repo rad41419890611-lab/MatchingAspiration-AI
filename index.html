@@ -4,16 +4,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
 <meta name="apple-mobile-web-app-title" content="Matching Aspiration AI">
 <meta name="application-name" content="Matching Aspiration AI">
 <meta name="theme-color" content="#0a0e1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Matching Aspiration AI</title>
+<title>Matching Aspiration ProAI</title>
 <style>
 :root{--bg:#0a0e1a;--sur:#111827;--sur2:#1a2234;--bdr:#1e2d45;--ac:#00c8ff;--ac2:#0080cc;--warn:#f59e0b;--danger:#ef4444;--ok:#10b981;--txt:#e2e8f0;--muted:#64748b;--dim:#94a3b8;--purple:#a78bfa;--orange:#fb923c;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -142,7 +142,7 @@ select.fs option{background:var(--sur2);}
 .cbr label{font-size:.78rem;color:var(--dim);cursor:pointer;}
 .fsl{font-size:.65rem;font-weight:700;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;padding:8px 0 3px;grid-column:1/-1;border-top:1px solid var(--bdr);margin-top:3px;}
 
-/* --- AI voice dock --- */
+/* — AI voice dock — */
 .ma-ai-dock{position:fixed;right:14px;bottom:16px;z-index:11000;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
 .ma-ai-panel{width:min(420px,calc(100vw - 24px));max-height:min(76vh,720px);overflow:auto;background:rgba(10,14,20,.96);backdrop-filter:blur(18px);border:1px solid rgba(0,200,255,.22);border-radius:22px;padding:16px;box-shadow:0 18px 48px rgba(0,0,0,.38),0 0 0 1px rgba(255,255,255,.03) inset;transform-origin:100% 100%;animation:maPop .26s ease;}
 @keyframes maPop{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
@@ -169,7 +169,7 @@ select.fs option{background:var(--sur2);}
 @keyframes maPulse{0%{box-shadow:0 0 0 0 rgba(255,107,141,.38),0 18px 34px rgba(0,200,255,.28)}70%{box-shadow:0 0 0 14px rgba(255,107,141,0),0 18px 34px rgba(0,200,255,.28)}100%{box-shadow:0 0 0 0 rgba(255,107,141,0),0 18px 34px rgba(0,200,255,.28)}}
 .ma-note{font-size:.7rem;color:#7ea2c0;line-height:1.7;margin-top:10px;}
 .ma-badge-wrap{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;}
-.ma-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:linear-gradient(135deg,rgba(0,200,255,.18),rgba(16,185,129,.10));border:1px solid rgba(0,200,255,.3);font-family:'Courier New',monospace;font-size:.68rem;color:#bfefff;box-shadow:0 10px 22px rgba(0,0,0,.22);}
+.ma-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:linear-gradient(135deg,rgba(0,200,255,.18),rgba(16,185,129,.10));border:1px solid rgba(0,200,255,.3);font-family:‘Courier New’,monospace;font-size:.68rem;color:#bfefff;box-shadow:0 10px 22px rgba(0,0,0,.22);}
 .ma-header-btn{padding:10px 12px;min-height:42px;background:#131d29;color:#dce9f5;border:1px solid rgba(0,200,255,.2);font-size:.78rem;}
 .ma-header-btn.primary{background:linear-gradient(135deg,#00c8ff,#10b981);color:#081019;border:none;}
 @media (max-width:720px){.ma-ai-panel{padding:14px}.ma-grid{grid-template-columns:1fr}.ma-header-btn{flex:1}}
@@ -220,7 +220,7 @@ select.fs option{background:var(--sur2);}
   <div class="logoWrap">
     <div class="logo">Matching Aspiration</div>
   </div>
-  <div class="sub">Secure Access — v2.4 Voice Guide</div>
+  <div class="sub">Secure Access — v2.4 ProAI</div>
   <div class="lbox">
     <div class="nb"><div class="nt">⚠ ご使用前に必ずお読みください</div>本ツールは<strong style="color:#e2eaf5;">医療機器ではありません</strong>。薬機法第２条第４項の「医療機器」に該当しません。脳血管内治療に従事する<strong style="color:#e2eaf5;">医療従事者向けの学習・参照目的ツール</strong>です。必ず最新のIFUを確認のうえ使用してください。</div>
     <label class="ar" for="agCk"><input type="checkbox" id="agCk" onchange="onAgree()"><span>本ツールが医療機器でないこと、参照・学習目的のみに使用すること、最終判断は術者が最新IFUを参照したうえで行うことに同意します。</span></label>
@@ -271,7 +271,7 @@ function onAgree(){
       <h1>Matching Aspiration</h1>
       <small>吸引カテーテル参照ツール（脳血管内治療補助用）</small>
     </div>
-    <div class="hver"><div style="color:var(--ok);font-size:.6rem;">✅ 非医療機器</div><div>v2.4 Voice</div></div>
+    <div class="hver"><div style="color:var(--ok);font-size:.6rem;">✅ 非医療機器</div><div>v2.4 ProAI</div></div>
   </div>
 
   <div class="tabs">
@@ -324,6 +324,7 @@ function onAgree(){
       </div>
 
   <!-- Key concept note -->
+
   <div style="background:rgba(0,200,255,.06);border:1px solid rgba(0,200,255,.18);border-radius:10px;padding:10px 13px;margin-bottom:12px;display:flex;gap:9px;align-items:flex-start;">
     <span style="font-size:1rem;flex-shrink:0;">💡</span>
     <div style="font-size:.69rem;color:#94a3b8;line-height:1.7;">
@@ -490,11 +491,21 @@ function doLogin(){
   }
   const pw=document.getElementById('pwIn').value;
   if(pw==='dvx'){
+    // iOS Safari: ユーザー操作内でspeechSynthesisをウォームアップ
+    if('speechSynthesis' in window){
+      try{
+        const wu=new SpeechSynthesisUtterance('');
+        wu.volume=0;
+        window.speechSynthesis.speak(wu);
+      }catch(e){}
+    }
     document.getElementById('pgLogin').style.display='none';
     document.getElementById('app').style.display='block';
     loadCats();
     upd();
     rfC1();
+    // AI自動起動（直接呼び出し）
+    if(window._maVoiceAutoStart) window._maVoiceAutoStart();
   } else {
     document.getElementById('emPw').style.display='block';
     document.getElementById('emAg').style.display='none';
@@ -784,8 +795,6 @@ function delC(idx){
 }
 </script>
 
-
-
 <script>
 (function(){
   const aiState={
@@ -832,24 +841,44 @@ function delC(idx){
     try{ finalBuffer=''; aiState.lastTranscript=''; aiState.recognition.start(); }
     catch(e){ setStatus('音声認識を開始できませんでした。マイクボタンを押して再度お試しください。'); }
   }
+
+  // iOS SafariはspeechSynthesisがsuspendedになることがあるため resume() を挟む
+  function speakWithResume(ut, opts){
+    const ss=window.speechSynthesis;
+    if(ss.paused || ss.speaking) ss.cancel();
+    // iOS: voices読み込み待ち
+    function doSpeak(){
+      if(ss.paused){ try{ss.resume();}catch(e){} }
+      ss.speak(ut);
+    }
+    if(ss.getVoices().length > 0){ doSpeak(); }
+    else {
+      ss.onvoiceschanged = ()=>{ ss.onvoiceschanged=null; doSpeak(); };
+      setTimeout(doSpeak, 400); // フォールバック
+    }
+  }
+
   function speak(text, opts={}){
     setStatus(text);
     if(!text || !('speechSynthesis' in window) || aiState.speechEnabled===false){
-      if(opts.autoListen) setTimeout(startListening, opts.delay||450);
+      if(opts.autoListen) setTimeout(startListening, opts.delay||600);
       return;
     }
     const id=++speechQueueId;
     try{ window.speechSynthesis.cancel(); }catch(e){}
     const ut=new SpeechSynthesisUtterance(text);
     ut.lang='ja-JP';
-    ut.rate=1.0;
+    ut.rate=0.95;
     ut.pitch=1.0;
     ut.onend=()=>{
       if(id!==speechQueueId) return;
-      if(opts.autoListen) setTimeout(startListening, opts.delay||450);
+      if(opts.autoListen) setTimeout(startListening, opts.delay||600);
     };
-    ut.onerror=()=>{ if(opts.autoListen) setTimeout(startListening, opts.delay||450); };
-    window.speechSynthesis.speak(ut);
+    ut.onerror=(e)=>{
+      if(e.error==='interrupted') return; // キャンセルは無視
+      if(opts.autoListen) setTimeout(startListening, opts.delay||600);
+    };
+    speakWithResume(ut, opts);
   }
   function promptAndListen(text, stage){
     flow.active=true;
@@ -1153,6 +1182,146 @@ function delC(idx){
     return '解釈できませんでした。ガイド開始、選択ガイド、同軸ガイド、血管径、デバイス名のいずれかで操作してください。';
   }
 
+  // ── Gemini AI 呼び出し（Netlify Functions ProxyでAPIキーをサーバー側管理） ──
+  // ── システムプロンプト生成 ──
+  function buildSystemPrompt(){
+    const catalog=cats.map((c,i)=>`[${i}] ${c.name} / 先端OD:${c.tip}mm / 手元OD:${c.hubMm}mm / 内腔:${c.lumenMm}mm / 有効長:${c.effLenNum}cm / 全長:${c.totLenNum}cm`).join('\n');
+    const connList=[...byId('yc').options].map(o=>`value="${o.value}" → ${o.textContent.trim()}`).join('\n');
+    return `あなたはMatchingAspiration ProAIです。脳血管内治療（EVT）の吸引カテーテル選定・同軸挿入確認を音声でガイドするアシスタントです。
+
+## 現在の操作ステート
+- activeFlow: ${flow.active}
+- stage: ${flow.stage}
+- mode: ${flow.mode||'なし'}
+- 1本目インデックス: ${flow.firstIdx||'未選択'}
+- 2本目インデックス: ${flow.secondIdx||'未選択'}
+- Yコネ設定: ${flow.connectorKey}
+- 現在タブ: ${currentTab()}
+
+## カテーテルカタログ（インデックス番号付き）
+${catalog}
+
+## Yコネ選択肢
+${connList}
+
+## あなたの役割
+ユーザーの音声/テキスト入力を解釈し、以下のJSONだけを返してください。コードブロックや説明文は不要です。
+
+{"action":"操作種別","value":"値","speech":"日本語50文字以内","nextStage":null}
+
+## action 一覧
+- "setVessel": 血管径設定。value=数値(mm)
+- "selectFirst": 1本目設定。value=カタログインデックス(整数)
+- "selectSecond": 2本目設定。value=カタログインデックス(整数)
+- "setConnector": Yコネ設定。value=optionのvalue文字列("0","3.8"等)
+- "switchTab": タブ切替。value="s"/"c"/"m"
+- "startGuide": ガイド開始
+- "askMode": 選択か同軸か確認
+- "askVessel": 血管径を聞く
+- "askFirst": 1本目を聞く
+- "askSecond": 2本目候補読上げて聞く
+- "askConnector": Yコネを聞く
+- "unknown": 解釈不可
+
+## ガイドフロー優先ルール
+- flow.active=true かつ stage=awaitVessel/awaitFirstDevice/awaitSecondDevice/awaitConnector の場合はそのステージを優先
+- 「選択」→選択フロー、「同軸」→同軸フロー
+- デバイス名は略称・カナ・誤字から最も近いカタログ品を推定
+- 「なし」「使わない」「コネなし」→value="0"
+
+必ずJSONのみ返すこと。`;
+  }
+
+  // ── アクション実行（GeminiとローカルFallback共通） ──
+  function applyParsedAction(parsed, userText){
+    const act=parsed.action||'unknown';
+    const val=parsed.value;
+    const speech=parsed.speech||'';
+
+    // ── アクション実行 ──
+    if(act==='startGuide'){
+      startGuidedFlow(); return;
+    }
+    if(act==='askMode'){
+      promptAndListen('選択確認ですか？ 同軸確認ですか？','chooseMode'); return;
+    }
+    if(act==='askVessel'){
+      flow.mode='selection'; sw('s'); promptAndListen('血管径をお伝えください。','awaitVessel'); return;
+    }
+    if(act==='askFirst'){
+      flow.mode='coaxial'; sw('c'); promptAndListen('1本目のデバイスを教えてください。','awaitFirstDevice'); return;
+    }
+    if(act==='setVessel'){
+      const v=parseFloat(val);
+      if(!isNaN(v)){ setVesselDiameter(v); scrollToId('tw'); finishFlow(speech||`血管径 ${v.toFixed(2)}mm を設定しました。`,{scrollId:'tw'}); } else { setStatus(speech); speak(speech); }
+      return;
+    }
+    if(act==='selectFirst'){
+      const idx=parseInt(val);
+      if(selectFirstByIndex(idx)){
+        flow.firstIdx=String(idx);
+        flow.active=true;
+        const fits=getCoaxialCandidatesByFirstIndex(idx);
+        if(!fits.length){ finishFlow(speech||`${cats[idx].name} を1本目に設定しましたが、2本目の候補はありません。`,{scrollId:'cr'}); return; }
+        promptForSecondDevice(cats[idx].name, fits);
+      } else { setStatus(speech); speak(speech); }
+      return;
+    }
+    if(act==='selectSecond'){
+      const idx=parseInt(val);
+      if(selectSecondByIndex(idx)){
+        flow.secondIdx=String(idx);
+        promptForConnector();
+      } else { setStatus(speech); speak(speech); }
+      return;
+    }
+    if(act==='askSecond'){
+      const fits=getCoaxialCandidatesByFirstIndex(flow.firstIdx);
+      const txt=speech||`2本目の候補：${buildCandidateSpeech(fits,x=>x.c.name)} 2本目を教えてください。`;
+      flow.stage='awaitSecondDevice'; flow.active=true;
+      speak(txt,{autoListen:true}); setStatus(txt);
+      return;
+    }
+    if(act==='askConnector'){
+      promptForConnector(); return;
+    }
+    if(act==='setConnector'){
+      const matched=String(val||'0');
+      if(setConnectorByValue(matched)){
+        flow.connectorKey=matched;
+        const summary=summarizeSelectedPair(flow.firstIdx,flow.secondIdx);
+        finishFlow(speech||`Yコネを反映しました。${summary}`,{scrollId:'cr'});
+      } else { setStatus(speech); speak(speech); }
+      return;
+    }
+    if(act==='switchTab'){
+      sw(String(val||'s')); setStatus(speech); speak(speech); return;
+    }
+    // unknown / fallback
+    if(speech){ setStatus(speech); speak(speech,{autoListen:flow.active}); }
+    else {
+      const handled = flow.active ? handleGuidedInput(userText) : applyManualCommand(userText);
+      if(handled){ setStatus(handled); speak(handled); }
+    }
+  }
+
+  // ── Gemini Netlify Functions 呼び出し ──
+  async function callGeminiProxy(userText){
+    const systemPrompt=buildSystemPrompt();
+    setStatus('AIが解析中…');
+    const res=await fetch('/.netlify/functions/ai-proxy',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt:userText, systemPrompt})
+    });
+    const data=await res.json();
+    if(!res.ok){
+      throw new Error(data.error||`HTTP ${res.status}`);
+    }
+    const clean=(data.text||'').replace(/```json|```/g,'').trim();
+    return JSON.parse(clean);
+  }
+
   async function sendAiCommand(text){
     const transcript=String(text||'').trim();
     if(!transcript || aiState.busy) return;
@@ -1160,10 +1329,23 @@ function delC(idx){
     refreshUi();
     setTranscript(transcript);
     try{
-      const handled = flow.active ? handleGuidedInput(transcript) : applyManualCommand(transcript);
-      if(handled){ setStatus(handled); speak(handled); }
+      let parsed=null;
+      try{
+        parsed=await callGeminiProxy(transcript);
+      }catch(apiErr){
+        // Gemini API失敗→ローカルルールでフォールバック
+        setStatus('AI接続エラー。ローカル処理で続行します。');
+        const handled = flow.active ? handleGuidedInput(transcript) : applyManualCommand(transcript);
+        if(handled){ setTimeout(()=>{ setStatus(handled); speak(handled); }, 600); }
+        return;
+      }
+      applyParsedAction(parsed, transcript);
     }catch(err){
-      setStatus('解析エラー: '+(err&&err.message?err.message:err));
+      setStatus('エラー: '+(err&&err.message?err.message:String(err)));
+      try{
+        const handled = flow.active ? handleGuidedInput(transcript) : applyManualCommand(transcript);
+        if(handled){ setStatus(handled); speak(handled); }
+      }catch(e2){}
     }finally{
       aiState.busy=false;
       refreshUi();
@@ -1171,17 +1353,14 @@ function delC(idx){
   }
 
   function hookLogin(){
-    const originalDoLogin=window.doLogin;
-    if(typeof originalDoLogin!=='function') return;
-    window.doLogin=function(){
-      const before=byId('app')?.style.display;
-      originalDoLogin.apply(this, arguments);
-      const after=byId('app')?.style.display;
-      if(after==='block' && before!=='block' && !flow.welcomeStarted){
-        flow.welcomeStarted=true;
-        aiState.loggedIn=true;
-        setTimeout(()=>{ togglePanel(true); startGuidedFlow(); }, 650);
-      }
+    // doLogin()内から直接呼ばれる _maVoiceAutoStart を登録
+    window._maVoiceAutoStart = function(){
+      if(flow.welcomeStarted) return;
+      flow.welcomeStarted = true;
+      setTimeout(()=>{
+        togglePanel(true);
+        startGuidedFlow();
+      }, 700);
     };
   }
 
@@ -1193,78 +1372,81 @@ function delC(idx){
       <div id="maAiPanel" class="ma-ai-panel hide">\
         <div class="ma-ai-head">\
           <div class="ma-ai-title">\
-            <strong>Matching Aspiration Voice Guide</strong>\
-            <span>ログイン後に自動開始。選択・同軸・Yコネまで音声でガイドします。</span>\
+            <strong>Matching Aspiration ProAI</strong>\
+            <span>Claude AIが自然言語・略称を解析。ログイン後に自動開始。</span>\
           </div>\
           <button id="maAiClose" class="ma-secondary" style="padding:10px 12px">閉じる</button>\
         </div>\
         <div id="maAiStatus" class="ma-status">待機中</div>\
         <div id="maAiTranscript" class="ma-transcript"></div>\
         <div class="ma-field"><textarea id="maAiInput" placeholder="例: ガイド開始\n例: 選択\n例: 血管径 2.1 ミリ\n例: 同軸\n例: 1本目 React71\n例: 2本目 SALVA71\n例: 使用なし"></textarea></div>\
-        <div class="ma-row">\
-          <button id="maAiSend" class="ma-primary">AIで反映</button>\
-          <button id="maAiMic" class="ma-secondary">音声開始</button>\
-        </div>\
-        <div class="ma-grid">\
-          <button class="ma-chip" data-cmd="ガイド開始"><b>音声ガイド</b>最初から開始</button>\
-          <button class="ma-chip" data-cmd="選択ガイド"><b>選択確認</b>血管径から候補表示</button>\
-          <button class="ma-chip" data-cmd="同軸ガイド"><b>同軸確認</b>1本目→2本目→Yコネ</button>\
-          <button class="ma-chip" data-cmd="使用なし"><b>Yコネなし</b>0cm 条件で計算</button>\
-        </div>\
-        <div class="ma-row">\
-          <button class="ma-pill" data-cmd="選択に切り替え">選択タブ</button>\
-          <button class="ma-pill" data-cmd="同軸に切り替え">同軸タブ</button>\
-          <button class="ma-pill" data-cmd="ガイド開始">再開</button>\
-        </div>\
-        <div class="ma-note">iPhone のホーム画面追加にも対応した PWA アイコンを同梱しています。音声は Safari / Chrome の最新版を推奨します。</div>\
-      </div>\
-      <button id="maAiFab" class="ma-fab" aria-label="Open AI assistant">AI</button>';
-    document.body.appendChild(dock);
 
-    const hdr=document.querySelector('#app .hdr > div:nth-child(2)');
-    if(hdr && !document.getElementById('maHeaderOpen')){
-      const wrap=document.createElement('div');
-      wrap.className='ma-badge-wrap';
-      wrap.innerHTML='<span class="ma-badge">VOICE GUIDE · AUTO START</span><button id="maHeaderOpen" class="ma-header-btn primary">AIアシスタント</button>';
-      hdr.appendChild(wrap);
-    }
+```
+    <div class="ma-row">\
+      <button id="maAiSend" class="ma-primary">AIで反映</button>\
+      <button id="maAiMic" class="ma-secondary">音声開始</button>\
+    </div>\
+    <div class="ma-grid">\
+      <button class="ma-chip" data-cmd="ガイド開始"><b>音声ガイド</b>最初から開始</button>\
+      <button class="ma-chip" data-cmd="選択ガイド"><b>選択確認</b>血管径から候補表示</button>\
+      <button class="ma-chip" data-cmd="同軸ガイド"><b>同軸確認</b>1本目→2本目→Yコネ</button>\
+      <button class="ma-chip" data-cmd="使用なし"><b>Yコネなし</b>0cm 条件で計算</button>\
+    </div>\
+    <div class="ma-row">\
+      <button class="ma-pill" data-cmd="選択に切り替え">選択タブ</button>\
+      <button class="ma-pill" data-cmd="同軸に切り替え">同軸タブ</button>\
+      <button class="ma-pill" data-cmd="ガイド開始">再開</button>\
+    </div>\
+    <div class="ma-note">Gemini AIがデバイス名の略称・カナ・自然言語を解析します。APIキーはサーバー側で管理されています。音声は Safari / Chrome の最新版を推奨します。</div>\
+  </div>\
+  <button id="maAiFab" class="ma-fab" aria-label="Open AI assistant">AI</button>';
+document.body.appendChild(dock);
 
-    byId('maAiFab').addEventListener('click',()=>togglePanel());
-    byId('maAiClose').addEventListener('click',()=>togglePanel(false));
-    byId('maAiSend').addEventListener('click',()=>sendAiCommand(byId('maAiInput').value));
-    byId('maAiInput').addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter') sendAiCommand(byId('maAiInput').value); });
-    byId('maAiMic').addEventListener('click',()=>{ if(!aiState.recognitionSupported){ setStatus('このブラウザでは音声認識が使えません。テキスト入力または Safari / Chrome の最新版をお試しください。'); return; } if(aiState.listening) stopListening(); else startListening(); });
-    byId('maHeaderOpen')?.addEventListener('click',()=>togglePanel(true));
-    dock.querySelectorAll('[data-cmd]').forEach(btn=>btn.addEventListener('click',()=>sendAiCommand(btn.dataset.cmd)));
-    setStatus('待機中\nログインすると音声ガイドが自動開始します。');
-  }
+const hdr=document.querySelector('#app .hdr > div:nth-child(2)');
+if(hdr && !document.getElementById('maHeaderOpen')){
+  const wrap=document.createElement('div');
+  wrap.className='ma-badge-wrap';
+  wrap.innerHTML='<span class="ma-badge">VOICE GUIDE · AUTO START</span><button id="maHeaderOpen" class="ma-header-btn primary">AIアシスタント</button>';
+  hdr.appendChild(wrap);
+}
 
-  function exposeTestApi(){
-    window.maVoiceTest={
-      startGuidedFlow,
-      process:text=>sendAiCommand(text),
-      getState:()=>({
-        flow:{...flow},
-        currentTab:currentTab(),
-        c1:byId('c1')?.value||'',
-        c2:byId('c2')?.value||'',
-        yc:byId('yc')?.value||'',
-        vessel:byId('vd')?.value||''
-      })
-    };
-  }
+byId('maAiFab').addEventListener('click',()=>togglePanel());
+byId('maAiClose').addEventListener('click',()=>togglePanel(false));
+byId('maAiSend').addEventListener('click',()=>sendAiCommand(byId('maAiInput').value));
+byId('maAiInput').addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter') sendAiCommand(byId('maAiInput').value); });
+byId('maAiMic').addEventListener('click',()=>{ if(!aiState.recognitionSupported){ setStatus('このブラウザでは音声認識が使えません。テキスト入力または Safari / Chrome の最新版をお試しください。'); return; } if(aiState.listening) stopListening(); else startListening(); });
+byId('maHeaderOpen')?.addEventListener('click',()=>togglePanel(true));
+dock.querySelectorAll('[data-cmd]').forEach(btn=>btn.addEventListener('click',()=>sendAiCommand(btn.dataset.cmd)));
+setStatus('待機中\nログインすると音声ガイドが自動開始します。');
+```
 
-  window.addEventListener('DOMContentLoaded',()=>{
-    createUi();
-    exposeTestApi();
-    aiState.recognition=initRecognition();
-    aiState.recognitionSupported=!!aiState.recognition;
-    refreshUi();
-    hookLogin();
-  });
+}
+
+function exposeTestApi(){
+window.maVoiceTest={
+startGuidedFlow,
+process:text=>sendAiCommand(text),
+getState:()=>({
+flow:{…flow},
+currentTab:currentTab(),
+c1:byId(‘c1’)?.value||’’,
+c2:byId(‘c2’)?.value||’’,
+yc:byId(‘yc’)?.value||’’,
+vessel:byId(‘vd’)?.value||’’
+})
+};
+}
+
+window.addEventListener(‘DOMContentLoaded’,()=>{
+createUi();
+exposeTestApi();
+aiState.recognition=initRecognition();
+aiState.recognitionSupported=!!aiState.recognition;
+refreshUi();
+hookLogin();
+});
 })();
 </script>
-
 
 </body>
 </html>

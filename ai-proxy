@@ -1,0 +1,111 @@
+/**
+
+- Netlify Function: ai-proxy
+- Gemini APIへのプロキシ。環境変数 GEMINI_API_KEY を使用。
+- エンドポイント: /.netlify/functions/ai-proxy
+  */
+
+exports.handler = async function(event, context) {
+// CORS preflight
+if (event.httpMethod === ‘OPTIONS’) {
+return {
+statusCode: 204,
+headers: corsHeaders(),
+body: ‘’
+};
+}
+
+if (event.httpMethod !== ‘POST’) {
+return { statusCode: 405, headers: corsHeaders(), body: JSON.stringify({ error: ‘Method Not Allowed’ }) };
+}
+
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) {
+return {
+statusCode: 500,
+headers: corsHeaders(),
+body: JSON.stringify({ error: ‘GEMINI_API_KEY が Netlify 環境変数に設定されていません。’ })
+};
+}
+
+let body;
+try {
+body = JSON.parse(event.body || ‘{}’);
+} catch (e) {
+return { statusCode: 400, headers: corsHeaders(), body: JSON.stringify({ error: ‘Invalid JSON body’ }) };
+}
+
+const { prompt, systemPrompt } = body;
+if (!prompt) {
+return { statusCode: 400, headers: corsHeaders(), body: JSON.stringify({ error: ‘prompt is required’ }) };
+}
+
+// Gemini API呼び出し (gemini-1.5-flash)
+const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+const geminiBody = {
+contents: [
+{
+role: ‘user’,
+parts: [{ text: prompt }]
+}
+],
+systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
+generationConfig: {
+temperature: 0.1,
+maxOutputTokens: 300,
+responseMimeType: ‘application/json’
+}
+};
+
+// undefinedキーを除去
+if (!geminiBody.systemInstruction) delete geminiBody.systemInstruction;
+
+try {
+const fetch = require(‘node-fetch’);
+const res = await fetch(geminiUrl, {
+method: ‘POST’,
+headers: { ‘Content-Type’: ‘application/json’ },
+body: JSON.stringify(geminiBody)
+});
+
+```
+const data = await res.json();
+
+if (!res.ok) {
+  const msg = data?.error?.message || res.statusText;
+  return {
+    statusCode: res.status,
+    headers: corsHeaders(),
+    body: JSON.stringify({ error: `Gemini API error: ${msg}` })
+  };
+}
+
+// Geminiレスポンスからテキストを抽出
+const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+const clean = rawText.replace(/```json|```/g, '').trim();
+
+return {
+  statusCode: 200,
+  headers: corsHeaders(),
+  body: JSON.stringify({ text: clean })
+};
+```
+
+} catch (err) {
+return {
+statusCode: 500,
+headers: corsHeaders(),
+body: JSON.stringify({ error: ’Function error: ’ + (err.message || String(err)) })
+};
+}
+};
+
+function corsHeaders() {
+return {
+‘Content-Type’: ‘application/json’,
+‘Access-Control-Allow-Origin’: ‘*’,
+‘Access-Control-Allow-Headers’: ‘Content-Type’,
+‘Access-Control-Allow-Methods’: ‘POST, OPTIONS’
+};
+}
