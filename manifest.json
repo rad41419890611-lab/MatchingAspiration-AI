@@ -1,36 +1,23 @@
 {
-  "name": "Matching Aspiration ProAI",
-  "short_name": "AspirationAI",
-  "description": "吸引カテーテル選定・同軸確認 音声ガイドツール（脳血管内治療補助用）",
+  "name": "Matching Aspiration AI",
+  "short_name": "Aspiration AI",
+  "description": "Aspiration catheter reference and coaxial voice guide tool",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0e1a",
-  "theme_color": "#00c8ff",
-  "orientation": "portrait",
+  "theme_color": "#0a0e1a",
   "icons": [
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ]
 }
