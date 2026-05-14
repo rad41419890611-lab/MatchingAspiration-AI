@@ -1,22 +1,11 @@
 [build]
   publish = "."
-  command = ""
-
-[build.environment]
-  NODE_VERSION = "18"
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "microphone=(self)"
 
 [[headers]]
   for = "/*.html"
   [headers.values]
     Content-Type = "text/html; charset=UTF-8"
-    Cache-Control = "no-cache, no-store, must-revalidate"
+    Cache-Control = "no-cache"
 
 [[headers]]
   for = "/manifest.json"

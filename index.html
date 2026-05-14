@@ -13,7 +13,7 @@
 <meta name="theme-color" content="#0a0e1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>MatchingAspirationProAI v2.7</title>
+<title>MatchingAspirationProAI v2.6</title>
 <style>
 :root{--bg:#0a0e1a;--sur:#111827;--sur2:#1a2234;--bdr:#1e2d45;--ac:#00c8ff;--ac2:#0080cc;--warn:#f59e0b;--danger:#ef4444;--ok:#10b981;--txt:#e2e8f0;--muted:#64748b;--dim:#94a3b8;--purple:#a78bfa;--orange:#fb923c;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -788,7 +788,7 @@ function delC(idx){
 
 <script>
 /* =====================================================================
-   MatchingAspirationProAI - Voice Guide v2.7 (Barge-in)
+   MatchingAspirationProAI - Voice Guide v2.6
    臨床現場での音声のみ操作を想定し、認識能力・揺れ吸収・自動再試行・
    フォールバックUIを大幅に強化したモジュール。
    ===================================================================== */
@@ -807,12 +807,7 @@ function delC(idx){
     autoRestart:true,
     restartTimer:null,
     listenStartedAt:0,
-    lastUserGesture:Date.now(),
-    /* === Barge-in === */
-    bargeIn:true,           /* 常時 ON: 読み上げ中でも認識を続ける */
-    speaking:false,         /* 現在 TTS 再生中か */
-    currentUtter:null,      /* 直近の SpeechSynthesisUtterance */
-    pendingAfterSpeak:null  /* TTS 後に予定された再リスニング設定 */
+    lastUserGesture:Date.now()
   };
   const flow = {
     active:false,
@@ -888,16 +883,11 @@ function delC(idx){
   }
   function scheduleStop(){
     clearTimeout(silenceTimer);
-    /* barge-in 中は、AIが話している間は無音タイムアウトしない（術者の指示を待つ） */
-    const wait = aiState.speaking ? 6000 : 2200;
     silenceTimer=setTimeout(()=>{
-      if(aiState.listening && !aiState.speaking){
+      if(aiState.listening){
         try{ aiState.recognition.stop(); }catch(e){}
-      } else if(aiState.listening && aiState.speaking){
-        /* TTS 中はもう一度延長する */
-        scheduleStop();
       }
-    }, wait);
+    }, 2200);   /* 1.8s -> 2.2s（臨床ではゆっくり喋ることが多い） */
   }
   function startListening(){
     if(!aiState.recognitionSupported) { setStatus('このブラウザは音声認識に未対応です。テキスト入力をご利用ください。'); return; }
@@ -913,32 +903,57 @@ function delC(idx){
       setTimeout(()=>{ try{ aiState.recognition.start(); }catch(_){ } }, 250);
     }
   }
-  function ensureListeningForBargeIn(){
-    if(aiState.bargeIn && aiState.recognitionSupported && !aiState.listening){
-      try{ startListening(); }catch(e){}
-    }
-  }
   function safeRestartListening(delay){
     clearTimeout(aiState.restartTimer);
     aiState.restartTimer=setTimeout(()=>{
-      if(!aiState.listening && (flow.active || aiState.bargeIn)) startListening();
+      if(!aiState.listening && flow.active) startListening();
     }, delay||500);
   }
 
-  /* ---------- 音声合成（読み上げ・Barge-in 対応） ---------- */
-  function abortSpeaking(){
-    aiState.speaking=false;
-    aiState.currentUtter=null;
-    try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+  /* ---------- TTS 発音補正（デバイス名 → 自然な日本語読み） ---------- */
+  function ttsNormalize(text){
+    const deviceRead = [
+      ['CEREGLIDE71','セレグライドなないち'],
+      ['CEREGLIDE57','セレグライドごーなな'],
+      ['CEREGLIDE42','セレグライドよんにー'],
+      ['React71','リアクトなないち'],
+      ['React68','リアクトろくはち'],
+      ['RED72','レッドななに'],
+      ['RED68','レッドろくはち'],
+      ['RED62','レッドろくに'],
+      ['RED43','レッドよんさん'],
+      ['SALVA71','サルバなないち'],
+      ['SALVA68','サルバろくはち'],
+      ['SALVA60','サルバろくぜろ'],
+      ['SALVA41','サルバよんいち'],
+      ['Vecta74','ベクタななよん'],
+      ['Vecta71','ベクタなないち'],
+      ['Vecta46','ベクタよんろく'],
+      ['APRO70','アプロななぜろ'],['APRO','アプロ'],
+      ['Catalyst7','カタリストセブン'],
+      ['Catalyst6','カタリストシックス'],
+      ['SOFIA 6F','ソフィアろくフレ'],['SOFIA 5F','ソフィアごフレ'],['SOFIA','ソフィア'],
+      ['Esperance6F','エスペランスろくフレ'],
+      ['Esperance5F','エスペランスごフレ'],
+      ['Esperance3+','エスペランススリープラス'],
+      ['3MAX','スリーマックス'],
+    ];
+    let t = String(text || '');
+    deviceRead.forEach(([pat, read]) => {
+      t = t.replace(new RegExp(pat.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), read);
+    });
+    /* （125cm）（132cm）などの括弧内長さ表記は読まない → 削除 */
+    t = t.replace(/（\d+cm）/g, '');
+    return t;
   }
+
+  /* ---------- 音声合成（読み上げ） ---------- */
   function speak(text, opts){
     opts=opts||{};
     setStatus(text);
-    aiState.pendingAfterSpeak = opts.autoListen ? {delay:opts.delay||450} : null;
+    text = ttsNormalize(text);
     if(!('speechSynthesis' in window) || aiState.speechEnabled===false){
-      /* 合成不可でも barge-in のため認識は常時起動 */
-      if(aiState.bargeIn) setTimeout(()=>{ if(!aiState.listening) startListening(); }, 120);
-      else if(opts.autoListen) setTimeout(startListening, opts.delay||500);
+      if(opts.autoListen) setTimeout(startListening, opts.delay||500);
       return;
     }
     const id=++speechQueueId;
@@ -952,36 +967,17 @@ function delC(idx){
       ut.rate=0.98;
       ut.pitch=1.0;
       ut.volume=1.0;
-      ut.onstart=()=>{
-        aiState.speaking=true;
-        /* TTS 開始と同時にマイクも開けておく（barge-in） */
-        if(aiState.bargeIn && !aiState.listening){
-          setTimeout(()=>{ if(!aiState.listening) startListening(); }, 60);
-        }
-      };
       ut.onend=()=>{
         if(id!==speechQueueId) return;
         pendingSpeak=null;
-        aiState.speaking=false;
-        aiState.currentUtter=null;
-        const pend=aiState.pendingAfterSpeak;
-        aiState.pendingAfterSpeak=null;
-        /* barge-in が ON なら認識は既に走っているので何もしない */
-        if(!aiState.bargeIn && pend){ setTimeout(startListening, pend.delay); }
-        else if(aiState.bargeIn && !aiState.listening){ setTimeout(startListening, 200); }
+        if(opts.autoListen) setTimeout(startListening, opts.delay||450);
       };
       ut.onerror=()=>{
-        aiState.speaking=false;
-        aiState.currentUtter=null;
-        if(aiState.bargeIn){ if(!aiState.listening) setTimeout(startListening, 200); }
-        else if(opts.autoListen) setTimeout(startListening, opts.delay||500);
+        if(opts.autoListen) setTimeout(startListening, opts.delay||500);
       };
-      aiState.currentUtter=ut;
       try{ window.speechSynthesis.speak(ut); }
       catch(e){
-        aiState.speaking=false;
-        if(aiState.bargeIn){ if(!aiState.listening) setTimeout(startListening, 200); }
-        else if(opts.autoListen) setTimeout(startListening, opts.delay||500);
+        if(opts.autoListen) setTimeout(startListening, opts.delay||500);
       }
     }, 80);
   }
@@ -1033,8 +1029,8 @@ function delC(idx){
       const err=e.error||'unknown';
       /* 無音タイムアウト等は静かに自動再試行 */
       if(err==='no-speech' || err==='audio-capture' || err==='aborted'){
-        if((flow.active || aiState.bargeIn) && aiState.autoRestart){
-          if(!aiState.speaking) setStatus('（無音）もう一度お話しください…');
+        if(flow.active && aiState.autoRestart){
+          setStatus('（無音）もう一度お話しください…');
           safeRestartListening(400);
           return;
         }
@@ -1045,7 +1041,7 @@ function delC(idx){
         return;
       }
       setStatus('音声認識エラー: '+err+'  もう一度お話しください。');
-      if((flow.active || aiState.bargeIn) && aiState.autoRestart) safeRestartListening(700);
+      if(flow.active && aiState.autoRestart) safeRestartListening(700);
     };
     rec.onend=()=>{
       aiState.listening=false;
@@ -1053,9 +1049,9 @@ function delC(idx){
       const transcript=(finalBuffer||interimBuffer||'').trim();
       if(transcript){
         sendAiCommand(transcript, /*fromVoice*/true);
-      } else if((flow.active || aiState.bargeIn) && aiState.autoRestart){
-        /* barge-in 常時 ON: 何も拾えなくても静かに再開 */
-        safeRestartListening(350);
+      } else if(flow.active && aiState.autoRestart){
+        /* 何も拾えなかった → 静かに再開 */
+        safeRestartListening(450);
       }
     };
     rec.onresult=e=>{
@@ -1074,14 +1070,6 @@ function delC(idx){
       interimBuffer=interim;
       const display = (finalBuffer + ' ' + interim).trim();
       setTranscript(display);
-
-      /* === Barge-in: AI 読み上げ中でも術者の「確認」や明確な指示で割り込み === */
-      if(aiState.speaking && display){
-        if(isInterruptUtterance(display) || looksLikeNextCommand(display)){
-          abortSpeaking();
-          setStatus('（割り込み受付）次の指示をどうぞ');
-        }
-      }
       scheduleStop();
     };
     return rec;
@@ -1197,28 +1185,6 @@ function delC(idx){
   function isCoaxialUtterance(text){ return anyContains(text, COAXIAL_WORDS); }
   function isResetUtterance(text){ return anyContains(text, RESET_WORDS); }
 
-  /* === Barge-in: 「確認」と発話されたら割り込み開始 === */
-  const INTERRUPT_WORDS = [
-    '確認','かくにん','カクニン','確認お願い','確認お願いします','確認お願いね',
-    '確認して','確認入って','確認はいって','確認します',
-    '次','つぎ','ネクスト','next',
-    '止めて','とめて','ストップ','stop','キャンセル','読み上げ止めて',
-    '聞いて','きいて','割り込み','わりこみ',
-    '修正','変更','戻る','やり直し','やり直して'
-  ];
-  function isInterruptUtterance(text){ return anyContains(text, INTERRUPT_WORDS); }
-  function looksLikeNextCommand(text){
-    /* 「確認」以外でも、はっきりとした次指示が来た時は読み上げを止めて受理 */
-    if(extractVesselDiameter(text)!=null) return true;
-    if(isSelectionUtterance(text) || isCoaxialUtterance(text)) return true;
-    if(isResetUtterance(text)) return true;
-    if(findBestCatheterMatch(text)) return true;
-    if(findConnectorMatch(text)) return true;
-    if(ordinalIndexFrom(text, 9)>=0) return true;
-    return false;
-  }
-
-
   /* ---------- 数値抽出（血管径） ---------- */
   function kanjiDigitToNum(s){
     const map={'零':0,'〇':0,'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};
@@ -1227,8 +1193,17 @@ function delC(idx){
   function readingsToNum(s){
     /* 「に てん いち」「いってんさん」のような読み上げ対応 */
     const t=nrm(s);
-    const map={'いち':'1','に':'2','さん':'3','し':'4','よん':'4','ご':'5','ろく':'6','なな':'7','しち':'7','はち':'8','きゅう':'9','く':'9','ぜろ':'0','れい':'0','まる':'0','てん':'.','点':'.'};
+    /* 連結読み（短縮形）を先に展開してから単音節に分解 */
+    const pre=[
+      ['なないち','71'],['ろくはち','68'],['ろくに','62'],['ろくぜろ','60'],
+      ['ごーなな','57'],['よんろく','46'],['よんさん','43'],['よんにー','42'],['よんに','42'],
+      ['よんいち','41'],['ななに','72'],['ななよん','74'],['ななぜろ','70'],
+      ['すりー','3'],['すりーぷらす','3+'],['せぶん','7'],['しっくす','6'],
+      ['ふれ','F'],['えふ','F'],
+    ];
     let out=t;
+    pre.sort((a,b)=>b[0].length-a[0].length).forEach(([k,v])=>{ out=out.split(k).join(v); });
+    const map={'いち':'1','に':'2','さん':'3','し':'4','よん':'4','ご':'5','ろく':'6','なな':'7','しち':'7','はち':'8','きゅう':'9','く':'9','ぜろ':'0','れい':'0','まる':'0','てん':'.','点':'.','ーなな':'7','ー':''}; 
     /* 長い読みから順に置換 */
     Object.keys(map).sort((a,b)=>b.length-a.length).forEach(k=>{
       out=out.split(k).join(map[k]);
@@ -1287,37 +1262,204 @@ function delC(idx){
 
   /* デバイスごとの読み・略称・誤認識揺れを網羅 */
   const DEVICE_ALIASES = {
-    'React71':['react71','react 71','リアクト71','リアクト 71','りあくと71','リアクト','リアクド71','レアクト71','れあくと71','react seventy one','react ななじゅういち'],
-    'React68':['react68','react 68','リアクト68','りあくと68','React 68','リアクト68','リアクド68','レアクト68'],
-    'RED72':['red72','red 72','レッド72','れっど72','レッド 72','red seventy two','レッドななじゅうに','red ななじゅうに'],
-    'RED68':['red68','red 68','レッド68','れっど68','red sixty eight','レッドろくじゅうはち'],
-    'RED62':['red62','red 62','レッド62','れっど62','レッドろくじゅうに'],
-    'RED43（138cm）':['red43','red 43','レッド43','れっど43','レッド43 138','レッド43の138'],
-    'RED43（153cm）':['red43 153','レッド43 153','レッド43の153'],
-    'APRO':['apro','エープロ','アプロ','えーぷろ','あぷろ','a pro','エイプロ'],
-    'SALVA71':['salva71','salva 71','サルバ71','さるば71','サルバ 71','サルヴァ71','さるゔぁ71'],
-    'SALVA68':['salva68','salva 68','サルバ68','さるば68','サルヴァ68'],
-    'SALVA60':['salva60','salva 60','サルバ60','さるば60','サルヴァ60'],
-    'SALVA41':['salva41','salva 41','サルバ41','さるば41','サルヴァ41'],
-    'Vecta74':['vecta74','vecta 74','ベクタ74','べくた74','ベクタ 74','ベクター74','べくたー74','vecta seventy four','axs vecta 74','axsベクタ74'],
-    'Vecta71':['vecta71','vecta 71','ベクタ71','べくた71','ベクター71','axs vecta 71','axsベクタ71'],
-    'Vecta46':['vecta46','vecta 46','ベクタ46','べくた46','ベクター46'],
-    'CEREGLIDE71（125cm）':['cereglide71 125','セレグライド71 125','セレグライド125'],
-    'CEREGLIDE71（132cm）':['cereglide71 132','セレグライド71 132','セレグライド132','セレグライド71'],
-    'CEREGLIDE71':['cereglide71','cereglide 71','セレグライド71','せれぐらいど71','セレグライド','セレグレイド71','せれぐれいど71'],
-    'CEREGLIDE57':['cereglide57','cereglide 57','セレグライド57','せれぐらいど57','セレグレイド57'],
-    'CEREGLIDE42':['cereglide42','cereglide 42','セレグライド42','せれぐらいど42','セレグレイド42'],
-    'Catalyst7':['catalyst7','catalyst 7','カタリスト7','かたりすと7','カタリスト 7','カタ7'],
-    'Catalyst6':['catalyst6','catalyst 6','カタリスト6','かたりすと6','カタリスト 6','カタ6'],
-    'SOFIA 6F':['sofia6f','sofia 6f','ソフィア6f','ソフィア 6','ソフィア6','そふぃあ6','ソフィヤ6'],
-    'SOFIA 5F':['sofia5f','sofia 5f','ソフィア5f','ソフィア5','そふぃあ5','ソフィヤ5'],
+    /* ===== React ===== */
+    'React71':[
+      'react71','react 71',
+      'リアクト71','リアクト 71','リアクト なないち','りあくとなないち',
+      'リアクド71','レアクト71','れあくと71',
+      'りあくとななじゅういち','リアクトななじゅういち',
+      'react seventy one'
+    ],
+    'React68':[
+      'react68','react 68',
+      'リアクト68','リアクト ろくはち','りあくとろくはち',
+      'リアクド68','レアクト68',
+      'りあくとろくじゅうはち','リアクトろくじゅうはち'
+    ],
+    /* ===== RED ===== */
+    'RED72':[
+      'red72','red 72',
+      'レッド72','れっど72','レッド ななに','れっどななに',
+      'れっどななじゅうに','レッドななじゅうに',
+      'red seventy two'
+    ],
+    'RED68':[
+      'red68','red 68',
+      'レッド68','れっど68','レッド ろくはち','れっどろくはち',
+      'れっどろくじゅうはち','レッドろくじゅうはち',
+      'red sixty eight'
+    ],
+    'RED62':[
+      'red62','red 62',
+      'レッド62','れっど62','レッド ろくに','れっどろくに',
+      'れっどろくじゅうに','レッドろくじゅうに'
+    ],
+    'RED43（138cm）':[
+      'red43','red 43','red43 138','red 43 138',
+      'レッド43','れっど43','レッド よんさん','れっどよんさん',
+      'レッド43 138','レッド43の138',
+      'れっどよんじゅうさん138','れっどよんじゅうさん 138'
+    ],
+    'RED43（153cm）':[
+      'red43 153','red 43 153',
+      'レッド43 153','レッド43の153','レッド よんさん 153',
+      'れっどよんじゅうさん153','れっどよんじゅうさん 153'
+    ],
+    /* ===== APRO ===== */
+    'APRO':[
+      'apro','apro70','apro 70','a pro',
+      'アプロ','アプロ70','アプロ ナナゼロ','アプロななぜろ',
+      'えーぷろ','エープロ','エイプロ','あぷろ',
+      'あぷろななじゅう','アプロななじゅう'
+    ],
+    /* ===== SALVA ===== */
+    'SALVA71':[
+      'salva71','salva 71',
+      'サルバ71','サルバ なないち','さるばなないち',
+      'サルヴァ71','さるゔぁ71',
+      'さるばななじゅういち','サルバななじゅういち'
+    ],
+    'SALVA68':[
+      'salva68','salva 68',
+      'サルバ68','サルバ ろくはち','さるばろくはち',
+      'サルヴァ68',
+      'さるばろくじゅうはち','サルバろくじゅうはち'
+    ],
+    'SALVA60':[
+      'salva60','salva 60',
+      'サルバ60','サルバ ろくぜろ','さるばろくぜろ',
+      'サルヴァ60',
+      'さるばろくじゅう','サルバろくじゅう'
+    ],
+    'SALVA41':[
+      'salva41','salva 41',
+      'サルバ41','サルバ よんいち','さるばよんいち',
+      'サルヴァ41',
+      'さるばよんじゅういち','サルバよんじゅういち'
+    ],
+    /* ===== Vecta ===== */
+    'Vecta74':[
+      'vecta74','vecta 74','axs vecta 74','axs vecta74',
+      'ベクタ74','ベクタ ななよん','べくたななよん',
+      'ベクター74','べくたー74','AXSベクタ74','axsベクタ74',
+      'べくたななじゅうよん','ベクタななじゅうよん',
+      'vecta seventy four'
+    ],
+    'Vecta71':[
+      'vecta71','vecta 71','axs vecta 71','axs vecta71',
+      'ベクタ71','ベクタ なないち','べくたなないち',
+      'ベクター71','AXSベクタ71','axsベクタ71',
+      'べくたななじゅういち','ベクタななじゅういち'
+    ],
+    'Vecta46':[
+      'vecta46','vecta 46',
+      'ベクタ46','ベクタ よんろく','べくたよんろく',
+      'ベクター46',
+      'べくたよんじゅうろく','ベクタよんじゅうろく'
+    ],
+    /* ===== CEREGLIDE ===== */
+    'CEREGLIDE71（125cm）':[
+      'cereglide71 125','cereglide 71 125',
+      'セレグライド71 125','セレグライド なないち 125','セレグライド125',
+      'せれぐらいどなないち125','せれぐらいど なないち 125',
+      'セレグレイド71 125',
+      'せれぐらいどななじゅういち125','せれぐらいどななじゅういち 125'
+    ],
+    'CEREGLIDE71（132cm）':[
+      'cereglide71 132','cereglide 71 132',
+      'セレグライド71 132','セレグライド なないち 132','セレグライド132','セレグライド71',
+      'せれぐらいどなないち132','せれぐらいど なないち 132',
+      'セレグレイド71 132','セレグレイド71',
+      'せれぐらいどななじゅういち132','せれぐらいどななじゅういち 132'
+    ],
+    'CEREGLIDE71':[
+      'cereglide71','cereglide 71',
+      'セレグライド71','セレグライド なないち','せれぐらいどなないち',
+      'セレグライド','せれぐらいど71',
+      'セレグレイド71','せれぐれいど71',
+      'せれぐらいどななじゅういち','セレグライドななじゅういち'
+    ],
+    'CEREGLIDE57':[
+      'cereglide57','cereglide 57',
+      'セレグライド57','セレグライド ごーなな','せれぐらいどごーなな',
+      'セレグレイド57','せれぐれいど57',
+      'せれぐらいどごじゅうなな','セレグライドごじゅうなな'
+    ],
+    'CEREGLIDE42':[
+      'cereglide42','cereglide 42',
+      'セレグライド42','セレグライド よんにー','せれぐらいどよんにー',
+      'セレグレイド42','せれぐれいど42',
+      'せれぐらいどよんじゅうに','セレグライドよんじゅうに'
+    ],
+    /* ===== Catalyst ===== */
+    'Catalyst7':[
+      'catalyst7','catalyst 7',
+      'カタリスト7','カタリスト セブン','かたりすとせぶん',
+      'カタリスト 7','カタ7',
+      'キャットセブン','キャットナナ','きゃっとせぶん','きゃっとなな',
+      'かたりすとさびん'
+    ],
+    'Catalyst6':[
+      'catalyst6','catalyst 6',
+      'カタリスト6','カタリスト シックス','かたりすとしっくす',
+      'カタリスト 6','カタ6',
+      'キャットシックス','キャットロク','きゃっとしっくす','きゃっとろく'
+    ],
+    /* ===== SOFIA ===== */
+    'SOFIA 6F':[
+      'sofia6f','sofia 6f','sofia 6',
+      'ソフィア6f','ソフィア6','ソフィア 6','ソフィア ろくフレ',
+      'そふぃあ6','そふぃあろくふれ',
+      'ソフィヤ6','ソフィアフローろくフレ','ソフィアフロー6',
+      'ソフィア ろく'
+    ],
+    'SOFIA 5F':[
+      'sofia5f','sofia 5f','sofia 5',
+      'ソフィア5f','ソフィア5','ソフィア 5','ソフィア ごフレ',
+      'そふぃあ5','そふぃあごふれ',
+      'ソフィヤ5','ソフィアフローごフレ','ソフィアフロー5',
+      'ソフィア ご'
+    ],
     'SOFIA':['sofia','ソフィア','そふぃあ'],
-    'Esperance6F':['esperance6f','esperance 6','エスペランス6','エスペランス 6','えすぺらんす6','エスペランサ6','esperance6'],
-    'Esperance5F':['esperance5f','esperance 5','エスペランス5','えすぺらんす5','エスペランサ5','esperance5'],
-    'Esperance3+（145cm）':['esperance3 145','エスペランス3 145','エスペランス3プラス145'],
-    'Esperance3+（153cm）':['esperance3 153','エスペランス3 153','エスペランス3プラス153'],
-    'Esperance3+':['esperance3','エスペランス3','えすぺらんす3','エスペランス3プラス','esperance3プラス','エスペランサ3','esperance 3 plus'],
-    '3MAX':['3max','3 max','スリーマックス','すりーまっくす','3マックス']
+    /* ===== Esperance ===== */
+    'Esperance6F':[
+      'esperance6f','esperance 6f','esperance6','esperance 6',
+      'エスペランス6f','エスペランス6','エスペランス 6','エスペランス ろくフレ',
+      'えすぺらんす6','えすぺろく','えすぺらんすろくふれ',
+      'エスペランサ6','エスペランサ6f',
+      'エスぺろく','エスペランス ろく'
+    ],
+    'Esperance5F':[
+      'esperance5f','esperance 5f','esperance5','esperance 5',
+      'エスペランス5f','エスペランス5','エスペランス 5','エスペランス ごフレ',
+      'えすぺらんす5','えすぺご','えすぺらんすごふれ',
+      'エスペランサ5','エスペランサ5f',
+      'エスぺご','エスペランス ご'
+    ],
+    'Esperance3+（145cm）':[
+      'esperance3 145','esperance 3 145','esperance3plus 145',
+      'エスペランス3 145','エスペランス3プラス145','エスペランス スリープラス 145',
+      'えすぺすりーぷらす145','えすぺすりーぷらす 145',
+      'エスペランサ3プラス 145'
+    ],
+    'Esperance3+（153cm）':[
+      'esperance3 153','esperance 3 153','esperance3plus 153',
+      'エスペランス3 153','エスペランス3プラス153','エスペランス スリープラス 153',
+      'えすぺすりーぷらす153','えすぺすりーぷらす 153',
+      'エスペランサ3プラス 153'
+    ],
+    'Esperance3+':[
+      'esperance3','esperance 3','esperance3plus','esperance 3 plus',
+      'エスペランス3','エスペランス スリープラス','エスペランス3プラス',
+      'えすぺらんす3','えすぺすりー','えすぺすりーぷらす',
+      'エスペランサ3','エスペランサ3プラス'
+    ],
+    /* ===== 3MAX ===== */
+    '3MAX':[
+      '3max','3 max',
+      'スリーマックス','すりーまっくす',
+      '3マックス','スリー マックス'
+    ]
   };
   function buildAliases(item){
     const aliases=new Set();
@@ -1744,37 +1886,20 @@ function delC(idx){
 
   /* ---------- 入力ハンドラ ---------- */
   async function sendAiCommand(text, fromVoice){
-    let transcript=String(text||'').trim();
+    const transcript=String(text||'').trim();
     if(!transcript || aiState.busy) return;
-    /* 割り込みワードのみが先頭にある場合は除去して以降を採用 */
-    const stripped = transcript.replace(/^(\s*(確認|かくにん|カクニン|次|つぎ|ストップ|stop|キャンセル|聞いて|割り込み|わりこみ)[、。\s]+)+/i, '');
-    let interruptOnly=false;
-    if(stripped !== transcript){
-      if(!stripped){ interruptOnly=true; }
-      else { transcript = stripped; }
-    } else if(/^(確認|かくにん|カクニン|次|つぎ|ストップ|stop|キャンセル|聞いて|割り込み|わりこみ)$/i.test(transcript)){
-      interruptOnly=true;
-    }
     aiState.busy=true;
     refreshUi();
     setTranscript(transcript);
-    abortSpeaking();
     try{
-      if(interruptOnly){
-        const prompt = flow.lastPrompt || '次の指示をどうぞ。';
-        setStatus('（割り込み受付）'+prompt);
-        speak('はい、お話しください。', {autoListen:true, delay:150});
-        return;
-      }
       const handled = flow.active ? handleGuidedInput(transcript) : applyManualCommand(transcript);
-      if(handled){ setStatus(handled); speak(handled, {autoListen:true}); }
+      if(handled){ setStatus(handled); speak(handled); }
     }catch(err){
       console.error(err);
       setStatus('解析エラー: '+(err && err.message ? err.message : err));
     }finally{
       aiState.busy=false;
       refreshUi();
-      ensureListeningForBargeIn();
     }
   }
 
@@ -1796,8 +1921,6 @@ function delC(idx){
           warm.lang='ja-JP'; warm.volume=0;
           window.speechSynthesis.speak(warm);
         }catch(e){}
-        /* Barge-in: ログインのユーザー操作と同時にマイクも常時起動 */
-        try{ if(aiState.recognitionSupported) startListening(); }catch(e){}
         setTimeout(()=>{ togglePanel(true); startGuidedFlow(); }, 700);
       }
     };
@@ -1839,7 +1962,6 @@ function delC(idx){
           <button class="ma-pill" data-cmd="選択タブ">選択タブ</button>
           <button class="ma-pill" data-cmd="同軸タブ">同軸タブ</button>
           <button class="ma-pill" data-cmd="使用なし">Yコネなし</button>
-          <button id="maAiBarge" class="ma-pill" style="border-color:rgba(16,185,129,.35);color:#a7f3d0;">🟢 Barge-in: ON</button>
         </div>
 
         <details class="ma-details">
@@ -1847,7 +1969,7 @@ function delC(idx){
           <pre id="maAiDebug" style="white-space:pre-wrap;font-size:.66rem;color:#a7c2dc;background:#0c1320;border:1px solid rgba(0,200,255,.12);border-radius:8px;padding:8px;margin-top:6px;max-height:160px;overflow:auto;"></pre>
         </details>
 
-        <div class="ma-note">音声は Safari / Chrome の最新版を推奨。マイク権限を「許可」にしてください。 認識が通らない時は上の <b>選択 / 同軸</b> ボタンをタップしてください。<br><b>Barge-in 機能</b>: AIが話している最中でも、<b>「確認」</b>と声をかければ読み上げを止めて次の指示を受け付けます。</div>
+        <div class="ma-note">音声は Safari / Chrome の最新版を推奨。マイク権限を「許可」にしてください。 認識が通らない時は上の <b>選択 / 同軸</b> ボタンをタップしてください。</div>
       </div>
       <button id="maAiFab" class="ma-fab" aria-label="Open AI assistant">AI</button>`;
     document.body.appendChild(dock);
@@ -1856,7 +1978,7 @@ function delC(idx){
     if(hdr && !document.getElementById('maHeaderOpen')){
       const wrap=document.createElement('div');
       wrap.className='ma-badge-wrap';
-      wrap.innerHTML='<span class="ma-badge">VOICE GUIDE · v2.7</span><button id="maHeaderOpen" class="ma-header-btn primary">AIアシスタント</button>';
+      wrap.innerHTML='<span class="ma-badge">VOICE GUIDE · v2.6</span><button id="maHeaderOpen" class="ma-header-btn primary">AIアシスタント</button>';
       hdr.appendChild(wrap);
     }
 
@@ -1878,18 +2000,7 @@ function delC(idx){
       aiState.lastUserGesture=Date.now();
       sendAiCommand(btn.dataset.cmd);
     }));
-    byId('maAiBarge')?.addEventListener('click', ()=>{
-      aiState.bargeIn=!aiState.bargeIn;
-      const b=byId('maAiBarge');
-      if(b){
-        b.textContent = aiState.bargeIn ? '🟢 Barge-in: ON' : '⚪ Barge-in: OFF';
-        b.style.color = aiState.bargeIn ? '#a7f3d0' : '#cde2f5';
-      }
-      if(aiState.bargeIn) ensureListeningForBargeIn();
-      else { try{ aiState.recognition && aiState.recognition.stop(); }catch(e){} }
-      setStatus('Barge-in を '+(aiState.bargeIn?'ON':'OFF')+' にしました。');
-    });
-    setStatus('待機中\nログインすると MatchingAspirationProAI の音声ガイドが自動開始します。\nAIが話している間でも「確認」と声をかければ割り込み可能です。');
+    setStatus('待機中\nログインすると MatchingAspirationProAI の音声ガイドが自動開始します。');
   }
 
   /* ---------- テスト用 API ---------- */
@@ -1897,24 +2008,11 @@ function delC(idx){
     window.maVoiceTest={
       startGuidedFlow,
       process: text => sendAiCommand(text),
-      isSelectionUtterance, isCoaxialUtterance, isInterruptUtterance,
+      isSelectionUtterance, isCoaxialUtterance,
       extractVesselDiameter, findBestCatheterMatch, findConnectorMatch,
       ordinalIndexFrom,
-      simulateBargeIn: (text)=>{
-        /* 読み上げ中の発話を再現 */
-        aiState.speaking=true;
-        const fake = text;
-        if(isInterruptUtterance(fake) || looksLikeNextCommand(fake)){
-          abortSpeaking();
-        }
-        return sendAiCommand(fake);
-      },
-      setBargeIn: (on)=>{ aiState.bargeIn=!!on; },
       getState:()=>({
         flow:{...flow},
-        bargeIn:aiState.bargeIn,
-        speaking:aiState.speaking,
-        listening:aiState.listening,
         currentTab:currentTab(),
         c1:byId('c1')?.value||'', c2:byId('c2')?.value||'',
         yc:byId('yc')?.value||'', vessel:byId('vd')?.value||''
@@ -1929,32 +2027,10 @@ function delC(idx){
     aiState.recognitionSupported=!!aiState.recognition;
     refreshUi();
     hookLogin();
-    const touchWake=()=>{
-      try{ window.speechSynthesis?.resume?.(); }catch(e){}
-      aiState.lastUserGesture=Date.now();
-      /* 初回ユーザー操作後、barge-in 用に常時マイクを開始 */
-      if(aiState.bargeIn && aiState.loggedIn && aiState.recognitionSupported && !aiState.listening){
-        try{ startListening(); }catch(e){}
-      }
-    };
+    const touchWake=()=>{ try{ window.speechSynthesis?.resume?.(); }catch(e){} aiState.lastUserGesture=Date.now(); };
     window.addEventListener('touchend', touchWake, {passive:true});
     window.addEventListener('click', touchWake, {passive:true});
-    document.addEventListener('visibilitychange', ()=>{
-      if(!document.hidden){
-        try{ window.speechSynthesis?.resume?.(); }catch(e){}
-        if(aiState.bargeIn && aiState.loggedIn) ensureListeningForBargeIn();
-      } else {
-        /* タブ非表示時はリソース節約のため停止 */
-        try{ aiState.recognition && aiState.recognition.stop(); }catch(e){}
-      }
-    });
-    /* barge-in が常時稼働していることを健康チェック */
-    setInterval(()=>{
-      if(aiState.bargeIn && aiState.loggedIn && aiState.recognitionSupported
-         && !aiState.listening && !document.hidden){
-        try{ startListening(); }catch(e){}
-      }
-    }, 4000);
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ try{ window.speechSynthesis?.resume?.(); }catch(e){} } });
   });
 })();
 </script>
