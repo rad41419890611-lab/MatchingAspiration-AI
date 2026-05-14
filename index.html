@@ -13,7 +13,7 @@
 <meta name="theme-color" content="#0a0e1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>MatchingAspirationProAI v2.6</title>
+<title>MatchingAspirationProAI v2.7</title>
 <style>
 :root{--bg:#0a0e1a;--sur:#111827;--sur2:#1a2234;--bdr:#1e2d45;--ac:#00c8ff;--ac2:#0080cc;--warn:#f59e0b;--danger:#ef4444;--ok:#10b981;--txt:#e2e8f0;--muted:#64748b;--dim:#94a3b8;--purple:#a78bfa;--orange:#fb923c;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -788,7 +788,7 @@ function delC(idx){
 
 <script>
 /* =====================================================================
-   MatchingAspirationProAI - Voice Guide v2.6
+   MatchingAspirationProAI - Voice Guide v2.7 (Barge-in)
    臨床現場での音声のみ操作を想定し、認識能力・揺れ吸収・自動再試行・
    フォールバックUIを大幅に強化したモジュール。
    ===================================================================== */
@@ -807,7 +807,12 @@ function delC(idx){
     autoRestart:true,
     restartTimer:null,
     listenStartedAt:0,
-    lastUserGesture:Date.now()
+    lastUserGesture:Date.now(),
+    /* === Barge-in === */
+    bargeIn:true,           /* 常時 ON: 読み上げ中でも認識を続ける */
+    speaking:false,         /* 現在 TTS 再生中か */
+    currentUtter:null,      /* 直近の SpeechSynthesisUtterance */
+    pendingAfterSpeak:null  /* TTS 後に予定された再リスニング設定 */
   };
   const flow = {
     active:false,
@@ -883,11 +888,16 @@ function delC(idx){
   }
   function scheduleStop(){
     clearTimeout(silenceTimer);
+    /* barge-in 中は、AIが話している間は無音タイムアウトしない（術者の指示を待つ） */
+    const wait = aiState.speaking ? 6000 : 2200;
     silenceTimer=setTimeout(()=>{
-      if(aiState.listening){
+      if(aiState.listening && !aiState.speaking){
         try{ aiState.recognition.stop(); }catch(e){}
+      } else if(aiState.listening && aiState.speaking){
+        /* TTS 中はもう一度延長する */
+        scheduleStop();
       }
-    }, 2200);   /* 1.8s -> 2.2s（臨床ではゆっくり喋ることが多い） */
+    }, wait);
   }
   function startListening(){
     if(!aiState.recognitionSupported) { setStatus('このブラウザは音声認識に未対応です。テキスト入力をご利用ください。'); return; }
@@ -903,19 +913,32 @@ function delC(idx){
       setTimeout(()=>{ try{ aiState.recognition.start(); }catch(_){ } }, 250);
     }
   }
+  function ensureListeningForBargeIn(){
+    if(aiState.bargeIn && aiState.recognitionSupported && !aiState.listening){
+      try{ startListening(); }catch(e){}
+    }
+  }
   function safeRestartListening(delay){
     clearTimeout(aiState.restartTimer);
     aiState.restartTimer=setTimeout(()=>{
-      if(!aiState.listening && flow.active) startListening();
+      if(!aiState.listening && (flow.active || aiState.bargeIn)) startListening();
     }, delay||500);
   }
 
-  /* ---------- 音声合成（読み上げ） ---------- */
+  /* ---------- 音声合成（読み上げ・Barge-in 対応） ---------- */
+  function abortSpeaking(){
+    aiState.speaking=false;
+    aiState.currentUtter=null;
+    try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+  }
   function speak(text, opts){
     opts=opts||{};
     setStatus(text);
+    aiState.pendingAfterSpeak = opts.autoListen ? {delay:opts.delay||450} : null;
     if(!('speechSynthesis' in window) || aiState.speechEnabled===false){
-      if(opts.autoListen) setTimeout(startListening, opts.delay||500);
+      /* 合成不可でも barge-in のため認識は常時起動 */
+      if(aiState.bargeIn) setTimeout(()=>{ if(!aiState.listening) startListening(); }, 120);
+      else if(opts.autoListen) setTimeout(startListening, opts.delay||500);
       return;
     }
     const id=++speechQueueId;
@@ -929,17 +952,36 @@ function delC(idx){
       ut.rate=0.98;
       ut.pitch=1.0;
       ut.volume=1.0;
+      ut.onstart=()=>{
+        aiState.speaking=true;
+        /* TTS 開始と同時にマイクも開けておく（barge-in） */
+        if(aiState.bargeIn && !aiState.listening){
+          setTimeout(()=>{ if(!aiState.listening) startListening(); }, 60);
+        }
+      };
       ut.onend=()=>{
         if(id!==speechQueueId) return;
         pendingSpeak=null;
-        if(opts.autoListen) setTimeout(startListening, opts.delay||450);
+        aiState.speaking=false;
+        aiState.currentUtter=null;
+        const pend=aiState.pendingAfterSpeak;
+        aiState.pendingAfterSpeak=null;
+        /* barge-in が ON なら認識は既に走っているので何もしない */
+        if(!aiState.bargeIn && pend){ setTimeout(startListening, pend.delay); }
+        else if(aiState.bargeIn && !aiState.listening){ setTimeout(startListening, 200); }
       };
       ut.onerror=()=>{
-        if(opts.autoListen) setTimeout(startListening, opts.delay||500);
+        aiState.speaking=false;
+        aiState.currentUtter=null;
+        if(aiState.bargeIn){ if(!aiState.listening) setTimeout(startListening, 200); }
+        else if(opts.autoListen) setTimeout(startListening, opts.delay||500);
       };
+      aiState.currentUtter=ut;
       try{ window.speechSynthesis.speak(ut); }
       catch(e){
-        if(opts.autoListen) setTimeout(startListening, opts.delay||500);
+        aiState.speaking=false;
+        if(aiState.bargeIn){ if(!aiState.listening) setTimeout(startListening, 200); }
+        else if(opts.autoListen) setTimeout(startListening, opts.delay||500);
       }
     }, 80);
   }
@@ -991,8 +1033,8 @@ function delC(idx){
       const err=e.error||'unknown';
       /* 無音タイムアウト等は静かに自動再試行 */
       if(err==='no-speech' || err==='audio-capture' || err==='aborted'){
-        if(flow.active && aiState.autoRestart){
-          setStatus('（無音）もう一度お話しください…');
+        if((flow.active || aiState.bargeIn) && aiState.autoRestart){
+          if(!aiState.speaking) setStatus('（無音）もう一度お話しください…');
           safeRestartListening(400);
           return;
         }
@@ -1003,7 +1045,7 @@ function delC(idx){
         return;
       }
       setStatus('音声認識エラー: '+err+'  もう一度お話しください。');
-      if(flow.active && aiState.autoRestart) safeRestartListening(700);
+      if((flow.active || aiState.bargeIn) && aiState.autoRestart) safeRestartListening(700);
     };
     rec.onend=()=>{
       aiState.listening=false;
@@ -1011,9 +1053,9 @@ function delC(idx){
       const transcript=(finalBuffer||interimBuffer||'').trim();
       if(transcript){
         sendAiCommand(transcript, /*fromVoice*/true);
-      } else if(flow.active && aiState.autoRestart){
-        /* 何も拾えなかった → 静かに再開 */
-        safeRestartListening(450);
+      } else if((flow.active || aiState.bargeIn) && aiState.autoRestart){
+        /* barge-in 常時 ON: 何も拾えなくても静かに再開 */
+        safeRestartListening(350);
       }
     };
     rec.onresult=e=>{
@@ -1032,6 +1074,14 @@ function delC(idx){
       interimBuffer=interim;
       const display = (finalBuffer + ' ' + interim).trim();
       setTranscript(display);
+
+      /* === Barge-in: AI 読み上げ中でも術者の「確認」や明確な指示で割り込み === */
+      if(aiState.speaking && display){
+        if(isInterruptUtterance(display) || looksLikeNextCommand(display)){
+          abortSpeaking();
+          setStatus('（割り込み受付）次の指示をどうぞ');
+        }
+      }
       scheduleStop();
     };
     return rec;
@@ -1146,6 +1196,28 @@ function delC(idx){
   function isSelectionUtterance(text){ return anyContains(text, SELECTION_WORDS); }
   function isCoaxialUtterance(text){ return anyContains(text, COAXIAL_WORDS); }
   function isResetUtterance(text){ return anyContains(text, RESET_WORDS); }
+
+  /* === Barge-in: 「確認」と発話されたら割り込み開始 === */
+  const INTERRUPT_WORDS = [
+    '確認','かくにん','カクニン','確認お願い','確認お願いします','確認お願いね',
+    '確認して','確認入って','確認はいって','確認します',
+    '次','つぎ','ネクスト','next',
+    '止めて','とめて','ストップ','stop','キャンセル','読み上げ止めて',
+    '聞いて','きいて','割り込み','わりこみ',
+    '修正','変更','戻る','やり直し','やり直して'
+  ];
+  function isInterruptUtterance(text){ return anyContains(text, INTERRUPT_WORDS); }
+  function looksLikeNextCommand(text){
+    /* 「確認」以外でも、はっきりとした次指示が来た時は読み上げを止めて受理 */
+    if(extractVesselDiameter(text)!=null) return true;
+    if(isSelectionUtterance(text) || isCoaxialUtterance(text)) return true;
+    if(isResetUtterance(text)) return true;
+    if(findBestCatheterMatch(text)) return true;
+    if(findConnectorMatch(text)) return true;
+    if(ordinalIndexFrom(text, 9)>=0) return true;
+    return false;
+  }
+
 
   /* ---------- 数値抽出（血管径） ---------- */
   function kanjiDigitToNum(s){
@@ -1672,20 +1744,37 @@ function delC(idx){
 
   /* ---------- 入力ハンドラ ---------- */
   async function sendAiCommand(text, fromVoice){
-    const transcript=String(text||'').trim();
+    let transcript=String(text||'').trim();
     if(!transcript || aiState.busy) return;
+    /* 割り込みワードのみが先頭にある場合は除去して以降を採用 */
+    const stripped = transcript.replace(/^(\s*(確認|かくにん|カクニン|次|つぎ|ストップ|stop|キャンセル|聞いて|割り込み|わりこみ)[、。\s]+)+/i, '');
+    let interruptOnly=false;
+    if(stripped !== transcript){
+      if(!stripped){ interruptOnly=true; }
+      else { transcript = stripped; }
+    } else if(/^(確認|かくにん|カクニン|次|つぎ|ストップ|stop|キャンセル|聞いて|割り込み|わりこみ)$/i.test(transcript)){
+      interruptOnly=true;
+    }
     aiState.busy=true;
     refreshUi();
     setTranscript(transcript);
+    abortSpeaking();
     try{
+      if(interruptOnly){
+        const prompt = flow.lastPrompt || '次の指示をどうぞ。';
+        setStatus('（割り込み受付）'+prompt);
+        speak('はい、お話しください。', {autoListen:true, delay:150});
+        return;
+      }
       const handled = flow.active ? handleGuidedInput(transcript) : applyManualCommand(transcript);
-      if(handled){ setStatus(handled); speak(handled); }
+      if(handled){ setStatus(handled); speak(handled, {autoListen:true}); }
     }catch(err){
       console.error(err);
       setStatus('解析エラー: '+(err && err.message ? err.message : err));
     }finally{
       aiState.busy=false;
       refreshUi();
+      ensureListeningForBargeIn();
     }
   }
 
@@ -1707,6 +1796,8 @@ function delC(idx){
           warm.lang='ja-JP'; warm.volume=0;
           window.speechSynthesis.speak(warm);
         }catch(e){}
+        /* Barge-in: ログインのユーザー操作と同時にマイクも常時起動 */
+        try{ if(aiState.recognitionSupported) startListening(); }catch(e){}
         setTimeout(()=>{ togglePanel(true); startGuidedFlow(); }, 700);
       }
     };
@@ -1748,6 +1839,7 @@ function delC(idx){
           <button class="ma-pill" data-cmd="選択タブ">選択タブ</button>
           <button class="ma-pill" data-cmd="同軸タブ">同軸タブ</button>
           <button class="ma-pill" data-cmd="使用なし">Yコネなし</button>
+          <button id="maAiBarge" class="ma-pill" style="border-color:rgba(16,185,129,.35);color:#a7f3d0;">🟢 Barge-in: ON</button>
         </div>
 
         <details class="ma-details">
@@ -1755,7 +1847,7 @@ function delC(idx){
           <pre id="maAiDebug" style="white-space:pre-wrap;font-size:.66rem;color:#a7c2dc;background:#0c1320;border:1px solid rgba(0,200,255,.12);border-radius:8px;padding:8px;margin-top:6px;max-height:160px;overflow:auto;"></pre>
         </details>
 
-        <div class="ma-note">音声は Safari / Chrome の最新版を推奨。マイク権限を「許可」にしてください。 認識が通らない時は上の <b>選択 / 同軸</b> ボタンをタップしてください。</div>
+        <div class="ma-note">音声は Safari / Chrome の最新版を推奨。マイク権限を「許可」にしてください。 認識が通らない時は上の <b>選択 / 同軸</b> ボタンをタップしてください。<br><b>Barge-in 機能</b>: AIが話している最中でも、<b>「確認」</b>と声をかければ読み上げを止めて次の指示を受け付けます。</div>
       </div>
       <button id="maAiFab" class="ma-fab" aria-label="Open AI assistant">AI</button>`;
     document.body.appendChild(dock);
@@ -1764,7 +1856,7 @@ function delC(idx){
     if(hdr && !document.getElementById('maHeaderOpen')){
       const wrap=document.createElement('div');
       wrap.className='ma-badge-wrap';
-      wrap.innerHTML='<span class="ma-badge">VOICE GUIDE · v2.6</span><button id="maHeaderOpen" class="ma-header-btn primary">AIアシスタント</button>';
+      wrap.innerHTML='<span class="ma-badge">VOICE GUIDE · v2.7</span><button id="maHeaderOpen" class="ma-header-btn primary">AIアシスタント</button>';
       hdr.appendChild(wrap);
     }
 
@@ -1786,7 +1878,18 @@ function delC(idx){
       aiState.lastUserGesture=Date.now();
       sendAiCommand(btn.dataset.cmd);
     }));
-    setStatus('待機中\nログインすると MatchingAspirationProAI の音声ガイドが自動開始します。');
+    byId('maAiBarge')?.addEventListener('click', ()=>{
+      aiState.bargeIn=!aiState.bargeIn;
+      const b=byId('maAiBarge');
+      if(b){
+        b.textContent = aiState.bargeIn ? '🟢 Barge-in: ON' : '⚪ Barge-in: OFF';
+        b.style.color = aiState.bargeIn ? '#a7f3d0' : '#cde2f5';
+      }
+      if(aiState.bargeIn) ensureListeningForBargeIn();
+      else { try{ aiState.recognition && aiState.recognition.stop(); }catch(e){} }
+      setStatus('Barge-in を '+(aiState.bargeIn?'ON':'OFF')+' にしました。');
+    });
+    setStatus('待機中\nログインすると MatchingAspirationProAI の音声ガイドが自動開始します。\nAIが話している間でも「確認」と声をかければ割り込み可能です。');
   }
 
   /* ---------- テスト用 API ---------- */
@@ -1794,11 +1897,24 @@ function delC(idx){
     window.maVoiceTest={
       startGuidedFlow,
       process: text => sendAiCommand(text),
-      isSelectionUtterance, isCoaxialUtterance,
+      isSelectionUtterance, isCoaxialUtterance, isInterruptUtterance,
       extractVesselDiameter, findBestCatheterMatch, findConnectorMatch,
       ordinalIndexFrom,
+      simulateBargeIn: (text)=>{
+        /* 読み上げ中の発話を再現 */
+        aiState.speaking=true;
+        const fake = text;
+        if(isInterruptUtterance(fake) || looksLikeNextCommand(fake)){
+          abortSpeaking();
+        }
+        return sendAiCommand(fake);
+      },
+      setBargeIn: (on)=>{ aiState.bargeIn=!!on; },
       getState:()=>({
         flow:{...flow},
+        bargeIn:aiState.bargeIn,
+        speaking:aiState.speaking,
+        listening:aiState.listening,
         currentTab:currentTab(),
         c1:byId('c1')?.value||'', c2:byId('c2')?.value||'',
         yc:byId('yc')?.value||'', vessel:byId('vd')?.value||''
@@ -1813,10 +1929,32 @@ function delC(idx){
     aiState.recognitionSupported=!!aiState.recognition;
     refreshUi();
     hookLogin();
-    const touchWake=()=>{ try{ window.speechSynthesis?.resume?.(); }catch(e){} aiState.lastUserGesture=Date.now(); };
+    const touchWake=()=>{
+      try{ window.speechSynthesis?.resume?.(); }catch(e){}
+      aiState.lastUserGesture=Date.now();
+      /* 初回ユーザー操作後、barge-in 用に常時マイクを開始 */
+      if(aiState.bargeIn && aiState.loggedIn && aiState.recognitionSupported && !aiState.listening){
+        try{ startListening(); }catch(e){}
+      }
+    };
     window.addEventListener('touchend', touchWake, {passive:true});
     window.addEventListener('click', touchWake, {passive:true});
-    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ try{ window.speechSynthesis?.resume?.(); }catch(e){} } });
+    document.addEventListener('visibilitychange', ()=>{
+      if(!document.hidden){
+        try{ window.speechSynthesis?.resume?.(); }catch(e){}
+        if(aiState.bargeIn && aiState.loggedIn) ensureListeningForBargeIn();
+      } else {
+        /* タブ非表示時はリソース節約のため停止 */
+        try{ aiState.recognition && aiState.recognition.stop(); }catch(e){}
+      }
+    });
+    /* barge-in が常時稼働していることを健康チェック */
+    setInterval(()=>{
+      if(aiState.bargeIn && aiState.loggedIn && aiState.recognitionSupported
+         && !aiState.listening && !document.hidden){
+        try{ startListening(); }catch(e){}
+      }
+    }, 4000);
   });
 })();
 </script>
