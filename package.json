@@ -1,0 +1,9 @@
+{
+  "name": "matching-aspiration-pro-ai",
+  "version": "2.7.0",
+  "description": "Aspiration catheter reference and coaxial voice guide tool",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Static site - no build needed'"
+  }
+}

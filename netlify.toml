@@ -1,5 +1,9 @@
 [build]
   publish = "."
+  command = ""
+
+[build.environment]
+  NODE_VERSION = "18"
 
 [[headers]]
   for = "/*"
@@ -12,7 +16,7 @@
   for = "/*.html"
   [headers.values]
     Content-Type = "text/html; charset=UTF-8"
-    Cache-Control = "no-cache"
+    Cache-Control = "no-cache, no-store, must-revalidate"
 
 [[headers]]
   for = "/manifest.json"
