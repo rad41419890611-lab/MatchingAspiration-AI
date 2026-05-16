@@ -1,6 +1,6 @@
 {
   "name": "MatchingAspirationProAI",
-  "short_name": "MatchingAspirationProAI",
+  "short_name": "MA Pro-AI",
   "description": "Aspiration catheter reference and coaxial voice guide tool",
   "start_url": "/",
   "display": "standalone",

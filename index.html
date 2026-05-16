@@ -13,7 +13,7 @@
 <meta name="theme-color" content="#0a0e1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>MatchingAspirationProAI v2.6</title>
+<title>MatchingAspirationProAI v2.7</title>
 <style>
 :root{--bg:#0a0e1a;--sur:#111827;--sur2:#1a2234;--bdr:#1e2d45;--ac:#00c8ff;--ac2:#0080cc;--warn:#f59e0b;--danger:#ef4444;--ok:#10b981;--txt:#e2e8f0;--muted:#64748b;--dim:#94a3b8;--purple:#a78bfa;--orange:#fb923c;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -220,7 +220,7 @@ select.fs option{background:var(--sur2);}
   <div class="logoWrap">
     <div class="logo">MatchingAspirationProAI</div>
   </div>
-  <div class="sub">Secure Access — v2.5 Voice Guide</div>
+  <div class="sub">Secure Access — v2.7 Voice Guide</div>
   <div class="lbox">
     <div class="nb"><div class="nt">⚠ ご使用前に必ずお読みください</div>本ツールは<strong style="color:#e2eaf5;">医療機器ではありません</strong>。薬機法第２条第４項の「医療機器」に該当しません。脳血管内治療に従事する<strong style="color:#e2eaf5;">医療従事者向けの学習・参照目的ツール</strong>です。必ず最新のIFUを確認のうえ使用してください。</div>
     <label class="ar" for="agCk"><input type="checkbox" id="agCk" onchange="onAgree()"><span>本ツールが医療機器でないこと、参照・学習目的のみに使用すること、最終判断は術者が最新IFUを参照したうえで行うことに同意します。</span></label>
@@ -271,7 +271,7 @@ function onAgree(){
       <h1>MatchingAspirationProAI</h1>
       <small>吸引カテーテル参照ツール（脳血管内治療補助用）</small>
     </div>
-    <div class="hver"><div style="color:var(--ok);font-size:.6rem;">✅ 非医療機器</div><div>v2.5 Voice</div></div>
+    <div class="hver"><div style="color:var(--ok);font-size:.6rem;">✅ 非医療機器</div><div>v2.7 Voice</div></div>
   </div>
 
   <div class="tabs">
@@ -482,14 +482,21 @@ function fmtD(iso){
 }
 
 // ── LOGIN ──
-function doLogin(){
+// SHA-256ハッシュ: パスワードを平文でソースコードに残さない
+const _PH='b8a5195ede9a35450d1440103d2f955e12a5f78de4fab2a286895c880cbed7af'; // SHA-256ハッシュ（パスワード変更時はここを更新）
+async function _hash(s){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function doLogin(){
   if(!document.getElementById('agCk').checked){
     document.getElementById('emAg').style.display='block';
     document.getElementById('emPw').style.display='none';
     return;
   }
   const pw=document.getElementById('pwIn').value;
-  if(pw==='dvx'){
+  const h=await _hash(pw);
+  if(h===_PH){
     document.getElementById('pgLogin').style.display='none';
     document.getElementById('app').style.display='block';
     loadCats();
@@ -546,7 +553,7 @@ function upd(){
   const rows=sorted.map(c=>{
     const hc=c.note?'hw':'hn';
     const mc=(c.method||'').includes('用手')?'mh':'mp';
-    const lw=(c.totLenNum>=150)?'<div class="lw">⚠️ Passerelle21推奨</div>':'';
+    const lw=(c.totLenNum!=null&&c.totLenNum>=150)?'<div class="lw">⚠️ Passerelle21推奨</div>':'';
     const src=c.source?'<span class="sp" title="'+esc(c.source)+'">'+esc(c.source)+'</span>':'<span style="color:var(--muted);font-size:.6rem;">未設定</span>';
     return `<tr>
       <td><span class="pn">${esc(c.name)}</span></td>
@@ -572,8 +579,7 @@ function rfC1(){
   const sel=document.getElementById('c1');
   const prev=sel.value;
   sel.innerHTML='<option value="">-- 選択してください --</option>';
-  [...cats].sort((a,b)=>b.tip-a.tip).forEach((c,_)=>{
-    const idx=cats.indexOf(c);
+  cats.map((c,idx)=>({c,idx})).sort((a,b)=>b.c.tip-a.c.tip).forEach(({c,idx})=>{
     const o=document.createElement('option');
     o.value=idx; o.textContent=c.name; sel.appendChild(o);
   });
@@ -788,7 +794,7 @@ function delC(idx){
 
 <script>
 /* =====================================================================
-   MatchingAspirationProAI - Voice Guide v2.6
+   MatchingAspirationProAI - Voice Guide v2.7
    臨床現場での音声のみ操作を想定し、認識能力・揺れ吸収・自動再試行・
    フォールバックUIを大幅に強化したモジュール。
    ===================================================================== */
@@ -1907,9 +1913,9 @@ function delC(idx){
   function hookLogin(){
     const originalDoLogin=window.doLogin;
     if(typeof originalDoLogin!=='function') return;
-    window.doLogin=function(){
+    window.doLogin=async function(){
       const before=byId('app')?.style.display;
-      originalDoLogin.apply(this, arguments);
+      await originalDoLogin.apply(this, arguments);
       const after=byId('app')?.style.display;
       if(after==='block' && before!=='block' && !flow.welcomeStarted){
         flow.welcomeStarted=true;
@@ -1978,7 +1984,7 @@ function delC(idx){
     if(hdr && !document.getElementById('maHeaderOpen')){
       const wrap=document.createElement('div');
       wrap.className='ma-badge-wrap';
-      wrap.innerHTML='<span class="ma-badge">VOICE GUIDE · v2.6</span><button id="maHeaderOpen" class="ma-header-btn primary">AIアシスタント</button>';
+      wrap.innerHTML='<span class="ma-badge">VOICE GUIDE · v2.7</span><button id="maHeaderOpen" class="ma-header-btn primary">AIアシスタント</button>';
       hdr.appendChild(wrap);
     }
 
